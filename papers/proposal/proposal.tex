@@ -153,31 +153,58 @@
 
 
 
+\section{Team members}
 
-\begin{abstract}
-We present a straightforward, easy-to-implement, point-based approach
-for animating elastoplastic materials.  The core idea of our approach
-is the introduction of {\em embedded space}---the least-squares best
-fit of the materials rest state into three dimensions.  Together with
-{\em plastic offsets} that map embedded space to rest space, the
-embedded space allows us to robustly estimate the deformation
-gradient, compute elastic forces, and account for plastic flow.  We
-additionally introduce an estimate for the volume of a particle,
-opening the door for non-uniform sampling, and describe a technique to
-increase the robustness of point-based elastic simulation.
-Our approach can handle
-arbitrarily large elastic deformations and extreme plastic
-deformations.  Because the approach is point-based, there is no need
-for complex remeshing---the corresponding operation is a simple
-neighborhood query in embedded space. We demonstrate our approach on a variety of
-examples that display a wide range of material behaviors.
-\end{abstract}
+\begin{itemize}
+
+\item Ben Jones: Part of team that implemented the sequential version of his algorithm, working with Adam Bargteil on graphics simulation research
+
+\item Kyle Hansen:  
+
+\end{itemize}
+
+\section{Problem Description}
+
+Simulating deformable solids is important for creating visual effects.  To generate compelling effects, we need to be able to handle materials across the entire spectrum from highly elastic, to totally plastic.  Using finite element methods with volumetric meshes (often tetrahedral) is a common approach, but large plastic deformation creates poorly conditioned tets.  To handle this, complicated volumetric remeshing is necessary to maintain stability and accuracy.  Recently, several point based methods have been proposed to avoid these expensive/complex operations.  However, these methods often support only one end of the spectrum, elastic or plastic materials, but not both  \cite{meuller}, \cite{dan}.  Recently, \cite{us} proposed a new point based technique that handles materials across the range between elastic and plastic.  The goal of our project is to improve performance of their method by performing as much computation as possible on the GPU.  
+
+During the simulation, we maintain the objects world configuration, a set of nearest neighbors for each particle, and least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
+\newpage
+\begin{itemize}
+
+\item compute deformation gradient, per particle
+\begin{itemize}
+\item factor gradient into elastic and plastic components
+\item apply elastic and body (gravity) forces
+\item apply plastic deformation to vectors to all neighbors of a particle
+\end{itemize}
+\item integrate elastic forces
+\begin{itemize}
+\item perform explicit integration step of elastic and body forces
+\item perform implicit damping force solve (conjugate gradient (CG) solve of a sparse matrix)
+\end{itemize}
+\item compute new world reference configuration (sparse least squares solve using CG)
+\item compute per particle local error in global reference configuration 
+\item update particle neighborhoods (construct KD tree and do bounded nearest neighbor lookups)
+\item resolve obstacle collisions
+\end{itemize}
 
 
+For more details please refer to \cite{us}.
 
-\section{Introduction}
+\section{Suitability for GPU implementation}
 
-Hello
+Since the simulation is particle based, there is no explicit connectivity in the object, and hence, few data dependencies.  Most steps involve computing 3x3 matrices based on local information, or information from neighbor particles.  Within these steps, very little synchronization is required, since most writes are to a particle's own data. Therefore, most of the algorithm is inherently parallel, and we expect to see large speedups by performing operations on the GPU.  
+
+The two global solves involve solving sparse symmetric positive definite matrices using CG.  Each iteration requires a matrix multiply and a few dot products.  As stated in class, these operations don't perform particularly well on a GPU, but easily outperform CPU implementations.
+
+It may be necessary to perform the nearest neighbors lookup on the CPU, in which case, each time neighbors are updated, we would need to copy the array of reference space positions from GPU to CPU, and copy the array of neighbor information to the GPU.  The sequential implementation performs this copy every 10 timesteps, so it is unlikely that this will be a significant bottleneck.  
+
+For real time rendering, we hope to share buffers between CUDA and OpenGL so that there is no copy overhead to render the points.  
+
+
+\section{Intellectual Challenges}
+
+
 %\begin{CRcatlist}
   %\CRcat{I.3.7}{Computer Graphics}{Three-Dimensional Graphics and Realism}{Animation};
   %\CRcat{I.6.8}{Simulation and Modeling}{Types of Simulation}{Animation}.
