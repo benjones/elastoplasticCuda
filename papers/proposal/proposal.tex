@@ -159,7 +159,9 @@
 
 \item Ben Jones: Part of the team that implemented the sequential version of this algorithm, working with Adam Bargteil on graphics simulation research.
 
-\item Kyle Hansen: Computing Masters Student in the Graphics and Visualization Track. 
+\item Kyle Hansen: Computing Masters Student in the Graphics and Visualization Track.  
+2+ years of real world programming experience as an electronics engineer.  
+Hobby game programmer.
 
 \end{itemize}
 
@@ -186,6 +188,8 @@ During the simulation, we maintain the objects world configuration, a set of nea
 \item compute per particle local error in global reference configuration 
 \item update particle neighborhoods (construct KD tree and do bounded nearest neighbor lookups)
 \item resolve obstacle collisions
+\item (optional) render current simulation frame (using openGL)
+\item write particle positions to file
 \end{itemize}
 
 
@@ -193,7 +197,10 @@ For more details please refer to \cite{us}.
 
 \section{Suitability for GPU implementation}
 
-Since the simulation is particle based, there is no explicit connectivity in the object, and hence, few data dependencies.  Most steps involve computing 3x3 matrices based on local information, or information from neighbor particles.  Within these steps, very little synchronization is required, since most writes are to a particle's own data. Therefore, most of the algorithm is inherently parallel, and we expect to see large speedups by performing operations on the GPU.  
+Since the simulation is particle based, there is no explicit connectivity in the object, and hence, few data dependencies.  
+Most steps involve computing 3x3 matrices based on local information, or information from neighbor particles.  
+Within these steps, very little synchronization is required, since most writes are to a particle's own data. 
+Therefore, most of the algorithm is inherently parallel, and we expect to see large speedups by performing operations on the GPU.  
 
 The two global solves involve solving sparse symmetric positive definite matrices using CG.  Each iteration requires a matrix multiply and a few dot products.  As stated in class, these operations don't perform particularly well on a GPU, but easily outperform CPU implementations.
 
@@ -204,6 +211,11 @@ For real time rendering, we hope to share buffers between CUDA and OpenGL so tha
 
 \section{Intellectual Challenges}
 
+We expect the biggest challenges to come from solving the sparse matrices.
+Aside from that, much of the simulation should be relatively straightforward, although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
+Additionally, there may be some challenges in implementing the openGL rendering of the simulation.  
+Such difficulties will be due more to unfamiliarity with the process and libraries rather than it being theoretically difficult, 
+since CUDA already has functions that provide the ability to coordinate with openGL for rendering purposes.
 
 %\begin{CRcatlist}
   %\CRcat{I.3.7}{Computer Graphics}{Three-Dimensional Graphics and Realism}{Animation};
