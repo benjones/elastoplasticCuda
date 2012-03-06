@@ -158,10 +158,12 @@
 \begin{itemize}
 
 \item Ben Jones: Part of the team that implemented the sequential version of this algorithm, working with Adam Bargteil on graphics simulation research.
+Will be focusing on the core algorithm parallelization.
 
 \item Kyle Hansen: Computing Masters Student in the Graphics and Visualization Track.  
 2+ years of real world programming experience as an electronics engineer.  
-Hobby game programmer.
+Hobby game programmer.  
+Will be primarily concerned with the real time openGL rendering of simulation results.
 
 \end{itemize}
 
@@ -204,15 +206,23 @@ Therefore, most of the algorithm is inherently parallel, and we expect to see la
 
 The two global solves involve solving sparse symmetric positive definite matrices using CG.  Each iteration requires a matrix multiply and a few dot products.  As stated in class, these operations don't perform particularly well on a GPU, but easily outperform CPU implementations.
 
-It may be necessary to perform the nearest neighbors lookup on the CPU, in which case, each time neighbors are updated, we would need to copy the array of reference space positions from GPU to CPU, and copy the array of neighbor information to the GPU.  The sequential implementation performs this copy every 10 timesteps, so it is unlikely that this will be a significant bottleneck.  
+The KD tree data structure used for the nearest neighbor lookup is not well suited to parallelization.  
+Therefore, it may be necessary to perform the nearest neighbors lookup on the CPU, in which case, each time neighbors are updated, we would need to copy the array of reference space positions from GPU to CPU, and copy the array of neighbor information to the GPU.  The sequential implementation performs this copy every 10 timesteps, so it is unlikely that this will be a significant bottleneck.  
 
 For real time rendering, we hope to share buffers between CUDA and OpenGL so that there is no copy overhead to render the points.  
 
+There will be some copy overhead for each simulation frame when the points are copied back to the host to be written to a file, 
+but the impact is not expected to be significant.
 
 \section{Intellectual Challenges}
 
 We expect the biggest challenges to come from solving the sparse matrices.
-Aside from that, much of the simulation should be relatively straightforward, although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
+These will be large matrices and care will need to be taken to break them up effectively for parallel computation.
+That much is relatively straightforward and similar to previous assignments, but it will be further complicated by the use of sparce matrix methods.
+
+Aside from that, much of the simulation parallelization should simply involve converting loops into threaded CUDA functions, 
+although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
+
 Additionally, there may be some challenges in implementing the openGL rendering of the simulation.  
 Such difficulties will be due more to unfamiliarity with the process and libraries rather than it being theoretically difficult, 
 since CUDA already has functions that provide the ability to coordinate with openGL for rendering purposes.
