@@ -25,6 +25,7 @@
 \usepackage{wasysym}
 \usepackage{bm}
 \usepackage{cite}
+
 \usepackage{enumerate}
 
 \usepackage{url}
@@ -169,7 +170,7 @@ Will be primarily concerned with the real time openGL rendering of simulation re
 
 \section{Problem Description}
 
-Simulating deformable solids is important for creating visual effects.  To generate compelling effects, we need to be able to handle materials across the entire spectrum from highly elastic, to totally plastic.  Using finite element methods with volumetric meshes (often tetrahedral) is a common approach, but large plastic deformation creates poorly conditioned tets.  To handle this, complicated volumetric remeshing is necessary to maintain stability and accuracy.  Recently, several point based methods have been proposed to avoid these expensive/complex operations.  However, these methods often support only one end of the spectrum, elastic or plastic materials, but not both  \cite{meuller}, \cite{dan}.  Recently, \cite{us} proposed a new point based technique that handles materials across the range between elastic and plastic.  The goal of our project is to improve performance of their method by performing as much computation as possible on the GPU.  
+Simulating deformable solids is important for creating visual effects.  To generate compelling effects, we need to be able to handle materials across the entire spectrum from highly elastic, to totally plastic.  Using finite element methods with volumetric meshes (often tetrahedral) is a common approach, but large plastic deformation creates poorly conditioned tets.  To handle this, complicated volumetric remeshing is necessary to maintain stability and accuracy.  Recently, several point based methods have been proposed to avoid these expensive/complex operations.  However, these methods often support only one end of the spectrum, elastic or plastic materials, but not both  \cite{Mueller:2004:PBA}, \cite{Gerszewski:2009:APB}.  Recently, Jones et al. \cite{us} proposed a new point based technique that handles materials across the range between elastic and plastic.  The goal of our project is to improve performance of their method by performing as much computation as possible on the GPU.  
 
 During the simulation, we maintain the objects world configuration, a set of nearest neighbors for each particle, and least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
 \newpage
@@ -204,7 +205,7 @@ Most steps involve computing 3x3 matrices based on local information, or informa
 Within these steps, very little synchronization is required, since most writes are to a particle's own data. 
 Therefore, most of the algorithm is inherently parallel, and we expect to see large speedups by performing operations on the GPU.  
 
-The two global solves involve solving sparse symmetric positive definite matrices using CG.  Each iteration requires a matrix multiply and a few dot products.  As stated in class, these operations don't perform particularly well on a GPU, but easily outperform CPU implementations.
+The two global solves involve solving sparse symmetric positive definite matrices using CG.  Each iteration requires a matrix multiply and a few dot products.  As stated in class, these operations don't perform particularly well on a GPU, but easily outperform CPU implementations.  Rough profiling of the sequential implementation revealed that these solves take the majority of the computation time, in some cases as much as 90\%.   Hence any speedup by performing these computations on the GPU will make a significant difference in overall runtime.
 
 The KD tree data structure used for the nearest neighbor lookup is not well suited to parallelization.  
 Therefore, it may be necessary to perform the nearest neighbors lookup on the CPU, in which case, each time neighbors are updated, we would need to copy the array of reference space positions from GPU to CPU, and copy the array of neighbor information to the GPU.  The sequential implementation performs this copy every 10 timesteps, so it is unlikely that this will be a significant bottleneck.  
@@ -212,20 +213,20 @@ Therefore, it may be necessary to perform the nearest neighbors lookup on the CP
 For real time rendering, we hope to share buffers between CUDA and OpenGL so that there is no copy overhead to render the points.  
 
 There will be some copy overhead for each simulation frame when the points are copied back to the host to be written to a file, 
-but the impact is not expected to be significant.
+but the impact is not expected to be significant as there at least 10 time steps for frame, and often close to 100.
 
 \section{Intellectual Challenges}
 
 We expect the biggest challenges to come from solving the sparse matrices.
 These will be large matrices and care will need to be taken to break them up effectively for parallel computation.
-That much is relatively straightforward and similar to previous assignments, but it will be further complicated by the use of sparce matrix methods.
+That much is relatively straightforward and similar to previous assignments, but it will be further complicated by the use of sparse matrix methods.
 
 Aside from that, much of the simulation parallelization should simply involve converting loops into threaded CUDA functions, 
 although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
 
-Additionally, there may be some challenges in implementing the openGL rendering of the simulation.  
+Additionally, there may be some challenges in implementing the OpenGL rendering of the simulation.  
 Such difficulties will be due more to unfamiliarity with the process and libraries rather than it being theoretically difficult, 
-since CUDA already has functions that provide the ability to coordinate with openGL for rendering purposes.
+since CUDA already has functions that provide the ability to coordinate with OpenGL for rendering purposes.
 
 %\begin{CRcatlist}
   %\CRcat{I.3.7}{Computer Graphics}{Three-Dimensional Graphics and Realism}{Animation};
@@ -248,8 +249,8 @@ since CUDA already has functions that provide the ability to coordinate with ope
 %----------------------------------------------------------------------------
 
 
-%\bibliographystyle{acmsiggraph-awb}
-%\bibliography{monalisa}
+\bibliographystyle{acmsiggraph-awb}
+\bibliography{elastoplasticCuda}
 
 \end{document}
 
