@@ -2,6 +2,8 @@
 #ifndef _MATLIB_H
 #define _MATLIB_H
 
+#include <iostream>
+
 
 #define signum(x) (( x > 0 ) - ( x < 0 ))
 
@@ -39,7 +41,12 @@ struct mat2{
 __device__ void SVD(const mat3& A,
 		    mat3& U,
 		    vec3& S,
-		    Mat3& V);
+		    mat3& V);
+
+
+inline void printVector(const vec3& v ){
+  std::cout << v.x << ' ' << v.y << ' ' <<v.z << std::endl;
+}
 
 
 #endif
