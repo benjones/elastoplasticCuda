@@ -1,8 +1,11 @@
+#include <stdlib.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include "world.cuh"
 
-
-#include "world.h"
-
-
+// declarations
+extern "C" 
+void launch_kernel(int numParticles, vec3* positions, vec3* velocities, double dt);
 
 int main(int argc, char **argv){
   
@@ -19,10 +22,15 @@ int main(int argc, char **argv){
 
   bool animating = true;
   double dt = .001;
+	int frames = 100;
+	int frameCnt = 0;
 
   while(animating){
-    step<<<numparticles, 1>>>(positions_d, velocities_d, dt);
+    launch_kernel(numParticles, positions_d, velocities_d, dt);
 
+	// TODO - figure out a better exit condition
+	frameCnt++;
+	if(frameCnt > frames) animating = false;
   }
 
 }
