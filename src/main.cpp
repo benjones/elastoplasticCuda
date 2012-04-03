@@ -23,6 +23,8 @@ int main(int argc, char **argv){
   while(animating){
     step<<<numparticles, 1>>>(positions_d, velocities_d, dt);
 
+    //if it's been 30hz, draw
+
   }
 
 }
