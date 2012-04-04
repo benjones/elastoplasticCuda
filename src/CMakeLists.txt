@@ -1,4 +1,3 @@
-
 PROJECT(elastoplasticCuda)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
@@ -10,4 +9,4 @@ LINK_LIBRARIES("-L/${CUDA_SDK_ROOT_DIR}/C/lib")
 INCLUDE(FindCUDA)
 
 CUDA_ADD_EXECUTABLE(testSVD testSVD.cu)
-
+CUDA_ADD_EXECUTABLE(epSim world.cu main.cpp)
