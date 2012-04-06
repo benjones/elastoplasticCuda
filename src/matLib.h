@@ -26,6 +26,26 @@ struct mat2{
 };
 
 
+inline __host__ __device__ mat3 matDiag(const vec3& v){
+  mat3 ret;
+  ret.m00 = v.x;
+  ret.m01 = ret.m02 = 0;
+  ret.m11 = v.y;
+  ret.m10 = ret.m12 = 0;
+  ret.m22 = v.z;
+  ret.m20 = ret.m21 = 0;
+  return ret;
+}
+
+
+inline __host__ __device__ mat3 matIdentity(){
+  mat3 ret;
+  ret.m00 = ret.m11 = ret.m22 = 1.0f;\
+  ret.m01 = ret.m02 = ret.m10 = ret.m12 = ret.m20 = ret.m21 = 0.0f;
+  return ret;
+}
+
+
 inline void printVector(const vec3& v ){
   std::cout << v.x << ' ' << v.y << ' ' <<v.z << std::endl;
 }
@@ -49,14 +69,46 @@ inline void printMatrix(const mat3& m){
   
   }*/
 
-__host__ /*__device__*/ void SVD(const mat3& A,
+void __host__ __device__ matMult(const mat3& A, const mat3& B, mat3& out){
+  
+  out.m00 = A.m00*B.m00 + A.m01*B.m10 + A.m02*B.m20;
+  out.m01 = A.m00*B.m01 + A.m01*B.m11 + A.m02*B.m21;
+  out.m02 = A.m00*B.m02 + A.m01*B.m12 + A.m02*B.m22;
+
+  out.m10 = A.m10*B.m00 + A.m11*B.m10 + A.m12*B.m20;
+  out.m11 = A.m10*B.m01 + A.m11*B.m11 + A.m12*B.m21;
+  out.m12 = A.m10*B.m02 + A.m11*B.m12 + A.m12*B.m22;
+
+  out.m20 = A.m20*B.m00 + A.m21*B.m10 + A.m22*B.m20;
+  out.m21 = A.m20*B.m01 + A.m21*B.m11 + A.m22*B.m21;
+  out.m22 = A.m20*B.m02 + A.m21*B.m12 + A.m22*B.m22;
+
+  
+}
+
+__host__ __device__ mat3 matTranspose(const mat3& in){
+  mat3 out;
+  out.m00 = in.m00;
+  out.m01 = in.m10;
+  out.m02 = in.m20;
+  out.m10 = in.m01;
+  out.m11 = in.m11;
+  out.m12 = in.m21;
+  out.m20 = in.m02;
+  out.m21 = in.m12;
+  out.m22 = in.m22;
+
+  return out;
+}
+
+__host__ __device__ void SVD(const mat3& A,
 		    mat3& U,
 		    vec3& S,
 		    mat3& V){
 
   //see http://www.math.pitt.edu/~sussmanm/2071Spring08/lab09/index.html
 
-  const float tol = 1.e-6;
+  const float tol = 1.e-5;
 
   U = A; //copy it over to start with
   V.m00 = 1;
@@ -69,17 +121,17 @@ __host__ /*__device__*/ void SVD(const mat3& A,
   V.m21 = 0;
   V.m22 = 1; //V starts as identity;
 
-  std::cout << "A: ";
+  /*  std::cout << "A: ";
   printMatrix(A);
   std::cout << "U: " ;
   printMatrix(U);
   std::cout << "V: ";
-  printMatrix(V);
+  printMatrix(V);*/
 
   float converge = 1.0f + tol;
-
-  while (converge > tol){
-
+  unsigned iterationCount = 0;
+  while (converge > tol && iterationCount < 100){
+    iterationCount++;
     converge = 0.0f;
     //do for (i, j) pairs:
     // (0,1), (0,2), (1,2)
@@ -100,7 +152,7 @@ __host__ /*__device__*/ void SVD(const mat3& A,
       c = rsqrtf(1 + t*t); //1/sqrt(1 + t^2)
       s = c*t;
       
-      std::cout << alpha << ' ' << beta << ' ' << gamma << ' ' << converge << ' ' << zeta << ' ' << t << ' ' << c << std::endl;
+      //std::cout << alpha << ' ' << beta << ' ' << gamma << ' ' << converge << ' ' << zeta << ' ' << t << ' ' << c << std::endl;
       
       //update cols i,j of U:
       t = U.m00;
@@ -124,9 +176,9 @@ __host__ /*__device__*/ void SVD(const mat3& A,
       V.m20 = c*t - s*V.m21;
       V.m21 = s*t + c*V.m21;
       
-      printMatrix(U);
-      std::cout << "v: ";
-      printMatrix(V);
+      //printMatrix(U);
+      //std::cout << "v: ";
+      //printMatrix(V);
     }
     //i = 0, j = 2
     alpha = U.m00*U.m00 + U.m10*U.m10 + U.m20*U.m20;
@@ -221,7 +273,38 @@ __host__ /*__device__*/ void SVD(const mat3& A,
   
 }
 
+__host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 
+  const float equalsEps = 1e-5;
+  return (fabs(A.m00 - B.m00) < equalsEps) &&
+    (fabs(A.m01 - B.m01) < equalsEps) &&
+    (fabs(A.m02 - B.m02) < equalsEps) &&
+    (fabs(A.m10 - B.m10) < equalsEps) &&
+    (fabs(A.m11 - B.m11) < equalsEps) &&
+    (fabs(A.m12 - B.m12) < equalsEps) &&
+    (fabs(A.m20 - B.m20) < equalsEps) &&
+    (fabs(A.m21 - B.m21) < equalsEps) &&
+    (fabs(A.m22 - B.m22) < equalsEps);
 
+}
 
+__host__ __device__ bool checkSVD(const mat3& A){
+
+  mat3 U, V;
+  vec3 S;
+
+  SVD(A, U, S, V);
+
+  mat3 uut, vtv, sDiag, uSDiag, prod;
+  matMult(U, matTranspose(U), uut);
+  matMult(matTranspose(V), V, vtv);
+  sDiag = matDiag(S);
+  matMult(U, sDiag, uSDiag);
+  matMult(uSDiag, matTranspose(V), prod);
+  
+  return matApproxEquals(uut, matIdentity()) &&
+    matApproxEquals(vtv, matIdentity()) &&
+    matApproxEquals(prod, A);
+
+}
 #endif
