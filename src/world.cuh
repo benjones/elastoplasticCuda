@@ -1,6 +1,8 @@
 #ifndef _world_cuh_
 #define _world_cuh_ 
 
+
+// TODO - we may want to turn this into an aligned struct for coalesced memory access...
 struct vec3{
   float x,y,z;
 
@@ -10,6 +12,6 @@ struct vec3{
 // since the compiler can't seem to handle __global__
 //__global__ void step(vec3* positions,
 //		     vec3* velocities,
-//		     double dt);
+//		     float dt);
 
 #endif	// _world_cuh_
