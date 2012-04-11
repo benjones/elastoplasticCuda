@@ -3,10 +3,11 @@
 
 
 // TODO - we may want to turn this into an aligned struct for coalesced memory access...
-struct vec3{
-  float x,y,z;
+// USE "float4" cuda struct instead of vec3 !!!!!!!!!!!!!!!!
+//struct vec3{
+//  float x,y,z;
 
-};
+//};
 
 // use global extern call "launch_kernel" defined in world.cu to access from .cpp files
 // since the compiler can't seem to handle __global__

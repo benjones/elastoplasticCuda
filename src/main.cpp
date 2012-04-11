@@ -5,6 +5,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <vector_types.h>
 
 #include <cutil_inline.h>
 #include <cutil_gl_inline.h>
@@ -12,7 +13,7 @@
 
 #include <iostream>
 
-#include "world.cuh"
+//#include "world.cuh"
 using namespace std;
 
 #define MAX(a,b) ((a > b) ? a : b)
@@ -31,7 +32,7 @@ float anim = 0.0;
 
 // declarations
 extern "C" 
-void launch_kernel(float4* dptr, int numParticles, vec3* positions, vec3* velocities, float dt);
+void launch_kernel( int numParticles, float4* positions, float4* velocities, float dt);
 
 void runCuda(struct cudaGraphicsResource **vbo_resource);
 
@@ -59,17 +60,17 @@ void keyboard(unsigned char key, int x, int y);
 	
 	// give these global-file scope for now...
   	int numParticles = 0;
-  	vec3* positions_h = NULL;
-  	vec3* velocities_h = NULL;
-	vec3* positions_d, *velocities_d;
+  	float4* positions_h = NULL;
+  	float4* velocities_h = NULL;
+	float4* positions_d, *velocities_d;
   	float dt = .001;
 
 
 int main(int argc, char **argv){
   	cudaError_t res;	//cuda success or error code
   numParticles = 10;
-  positions_h = (vec3*) malloc(sizeof(vec3)*numParticles);
-  velocities_h = (vec3*) malloc(sizeof(vec3)*numParticles);
+  positions_h = (float4*) malloc(sizeof(float4)*numParticles);
+  velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
 
 	cout << "---init particles..." << endl;
 
@@ -104,13 +105,13 @@ int main(int argc, char **argv){
 	// IMPORTANT: apparently you need to have this stuff after cudaGLSetGLDevice...
 
 // TODO --- cudamalloc the positions and velocities...
-	res = cudaMalloc((void**)&positions_d, sizeof(vec3)*numParticles);
+	res = cudaMalloc((void**)&positions_d, sizeof(float4)*numParticles);
 	if (res != cudaSuccess){
 		fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
         return EXIT_FAILURE;
 	}
-	res = cudaMalloc((void**)&velocities_d, sizeof(vec3)*numParticles);
+	res = cudaMalloc((void**)&velocities_d, sizeof(float4)*numParticles);
 	if (res != cudaSuccess){
 		fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
@@ -118,9 +119,9 @@ int main(int argc, char **argv){
 	}
 
   // set up device memory
-  cudaMemcpy(positions_d, positions_h, sizeof(vec3)*numParticles, 
+  cudaMemcpy(positions_d, positions_h, sizeof(float4)*numParticles, 
 	     cudaMemcpyHostToDevice);
-  cudaMemcpy(velocities_d, velocities_h, sizeof(vec3)*numParticles, 
+  cudaMemcpy(velocities_d, velocities_h, sizeof(float4)*numParticles, 
 	     cudaMemcpyHostToDevice);
 
 	cout << "---run CUDA first time..." << endl;
@@ -185,36 +186,34 @@ void initGL(int *argc, char **argv){
 // handles switching between cuda and openGL and calling the kernel fxn
 void runCuda(struct cudaGraphicsResource **vbo_resource)
 {
-// ######## TODO #################
-// #### Get this set up for our launch_kernel.....
-cout << "A";
+// TODO - set this to draw points from positions buffer...
     // map OpenGL buffer object for writing from CUDA
     float4 *dptr;
-cout << "B";
+
     // DEPRECATED: cutilSafeCall(cudaGLMapBufferObject((void**)&dptr, vbo));
     cutilSafeCall(cudaGraphicsMapResources(1, vbo_resource, 0));
-cout << "C";
+
     size_t num_bytes; 
-cout << "D";
+
     cutilSafeCall(cudaGraphicsResourceGetMappedPointer((void **)&dptr, &num_bytes, *vbo_resource));
-cout << "E";
-    printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
-cout << "F";
+
+    //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
+
     
-	launch_kernel(dptr, numParticles, positions_d, velocities_d, dt);
-cout << "G";
+	launch_kernel(numParticles, positions_d, velocities_d, dt);
+
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
     cutilSafeCall(cudaGraphicsUnmapResources(1, vbo_resource, 0));
-cout << "H" << endl;
+
 }
 
 void display(){
-	cout << "**D: run cuda" << endl;
+
     // run CUDA kernel to generate vertex positions
     runCuda(&cuda_vbo_resource);
 
-	cout << "**D: back from cuda" << endl;
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set view matrix
@@ -224,7 +223,7 @@ void display(){
     glRotatef(rotate_x, 1.0, 0.0, 0.0);
     glRotatef(rotate_y, 0.0, 1.0, 0.0);
 
-	cout << "**D: render" << endl;
+
     // render from the vbo
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glVertexPointer(4, GL_FLOAT, 0, 0);
@@ -256,33 +255,28 @@ void cleanup()
 }
 
 void createVBO(GLuint* vbo, struct cudaGraphicsResource **vbo_res, unsigned int vbo_res_flags){
-	cout << "1" << endl;
+
     if (vbo) {
-	cout << "2" << endl;
-	// create buffer object
-	glGenBuffers(1, vbo);
-	cout << "3" << endl;
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-	cout << "4" << endl;
+		// create buffer object
+		glGenBuffers(1, vbo);
 
-	// initialize buffer object
-	unsigned int size = numParticles * 4 * sizeof(float);
-	glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
-	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	
-cout << "5" << endl;
-	// register this buffer object with CUDA
-	// DEPRECATED: cutilSafeCall(cudaGLRegisterBufferObject(*vbo));
-	cutilSafeCall(cudaGraphicsGLRegisterBuffer(vbo_res, *vbo, vbo_res_flags));
-	cout << "5.5" << endl;
+		glBindBuffer(GL_ARRAY_BUFFER, *vbo);
 
-	CUT_CHECK_ERROR_GL();
+		// initialize buffer object
+		unsigned int size = numParticles * 4 * sizeof(float);
+		glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+	
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+		// register this buffer object with CUDA
+		// DEPRECATED: cutilSafeCall(cudaGLRegisterBufferObject(*vbo));
+		cutilSafeCall(cudaGraphicsGLRegisterBuffer(vbo_res, *vbo, vbo_res_flags));
+
+		CUT_CHECK_ERROR_GL();
     } else {
-cout << "6" << endl;
-	cutilSafeCall( cudaMalloc( (void **)&d_vbo_buffer, numParticles*4*sizeof(float) ) );
+		cutilSafeCall( cudaMalloc( (void **)&d_vbo_buffer, numParticles*4*sizeof(float) ) );
     }
-cout << "7" << endl;
+
 }
 
 void deleteVBO(GLuint* vbo, struct cudaGraphicsResource *vbo_res)
@@ -291,6 +285,7 @@ void deleteVBO(GLuint* vbo, struct cudaGraphicsResource *vbo_res)
 	// unregister this buffer object with CUDA
 	//DEPRECATED: cutilSafeCall(cudaGLUnregisterBufferObject(*pbo));
 	cudaGraphicsUnregisterResource(vbo_res);
+
 	
 	glBindBuffer(1, *vbo);
 	glDeleteBuffers(1, vbo);
