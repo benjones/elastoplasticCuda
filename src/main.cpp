@@ -141,8 +141,9 @@ int main(int argc, char **argv){
 
 //  while(animating){
 //    launch_kernel(numParticles, positions_d, velocities_d, dt);
-
-	// TODO - figure out a better exit condition
+    
+    
+    // TODO - figure out a better exit condition
 //	frameCnt++;
 //	if(frameCnt > frames) animating = false;
 //  }
@@ -150,7 +151,7 @@ int main(int argc, char **argv){
   cudaThreadExit();		// clean up the GPU
   
 }
-
+  
 // TODO --- fill in method stubs
 // make all the necessary calls to get openGL rolling
 void initGL(int *argc, char **argv){
