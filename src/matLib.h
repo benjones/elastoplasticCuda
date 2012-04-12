@@ -108,7 +108,7 @@ __host__ __device__ void SVD(const mat3& A,
 
   //see http://www.math.pitt.edu/~sussmanm/2071Spring08/lab09/index.html
 
-  const float tol = 1.e-5;
+  const float tol = 1.e-7;
 
   U = A; //copy it over to start with
   V.m00 = 1;
@@ -130,7 +130,7 @@ __host__ __device__ void SVD(const mat3& A,
 
   float converge = 1.0f + tol;
   unsigned iterationCount = 0;
-  while (converge > tol && iterationCount < 100){
+  while (converge > tol && iterationCount < 200){
     iterationCount++;
     converge = 0.0f;
     //do for (i, j) pairs:
@@ -273,22 +273,25 @@ __host__ __device__ void SVD(const mat3& A,
   
 }
 
-__host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
+__host__ /*__device__*/ bool matApproxEquals(const mat3& A, const mat3& B){
 
-  const float equalsEps = 1e-5;
-  return (fabs(A.m00 - B.m00) < equalsEps) &&
-    (fabs(A.m01 - B.m01) < equalsEps) &&
-    (fabs(A.m02 - B.m02) < equalsEps) &&
-    (fabs(A.m10 - B.m10) < equalsEps) &&
-    (fabs(A.m11 - B.m11) < equalsEps) &&
-    (fabs(A.m12 - B.m12) < equalsEps) &&
-    (fabs(A.m20 - B.m20) < equalsEps) &&
-    (fabs(A.m21 - B.m21) < equalsEps) &&
-    (fabs(A.m22 - B.m22) < equalsEps);
+  const float equalsEps = 1e-4;
+  double totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
+    (A.m01 - B.m01)*(A.m01 - B.m01) +
+    (A.m02 - B.m02)*(A.m02 - B.m02) +
+    (A.m10 - B.m10)*(A.m10 - B.m10) +
+    (A.m11 - B.m11)*(A.m11 - B.m11) +
+    (A.m12 - B.m12)*(A.m12 - B.m12) +
+    (A.m20 - B.m20)*(A.m20 - B.m20) +
+    (A.m21 - B.m21)*(A.m21 - B.m21) +
+    (A.m22 - B.m22)*(A.m22 - B.m22);
+
+  std::cout << "total error: " << totalError << std::endl;
+  return totalError <= equalsEps;
 
 }
 
-__host__ __device__ bool checkSVD(const mat3& A){
+__host__ /*__device__*/ bool checkSVD(const mat3& A){
 
   mat3 U, V;
   vec3 S;
@@ -301,7 +304,11 @@ __host__ __device__ bool checkSVD(const mat3& A){
   sDiag = matDiag(S);
   matMult(U, sDiag, uSDiag);
   matMult(uSDiag, matTranspose(V), prod);
-  
+  std::cout << "A: " << std::endl;
+  printMatrix(A);
+  std::cout << "Approx A: " << std::endl;
+  printMatrix(prod);
+  std::cout << "u, v, product" << std::endl;
   return matApproxEquals(uut, matIdentity()) &&
     matApproxEquals(vtv, matIdentity()) &&
     matApproxEquals(prod, A);

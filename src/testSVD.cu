@@ -6,7 +6,7 @@ const unsigned numTests = 16;
 void __global__ svdKernel(mat3* As, bool* results){
 
   mat3 A = As[threadIdx.x];
-  results[threadIdx.x] = checkSVD(A);
+  //results[threadIdx.x] = checkSVD(A);
   
 }
 
