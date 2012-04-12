@@ -7,12 +7,6 @@
 
 #define signum(x) (( x > 0 ) - ( x < 0 ))
 
-struct vec3{
-  float x,y,z;
-
-};
-
-
 struct mat3{
   
   float m00, m01, m02, 
@@ -28,7 +22,7 @@ struct mat2{
 
 __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B);
 
-inline __host__ __device__ mat3 matDiag(const vec3& v){
+inline __host__ __device__ mat3 matDiag(const float4& v){
   mat3 ret;
   ret.m00 = v.x;
   ret.m01 = ret.m02 = 0;
@@ -48,7 +42,7 @@ inline __host__ __device__ mat3 matIdentity(){
 }
 
 
-inline void printVector(const vec3& v ){
+inline void printVector(const float4& v ){
   std::cout << v.x << ' ' << v.y << ' ' <<v.z << std::endl;
 }
 
@@ -71,8 +65,8 @@ inline void printMatrix(const mat3& m){
   
   }*/
 
-void __host__ __device__ matMult(const mat3& A, const mat3& B, mat3& out){
-  
+mat3 __host__ __device__ matMult(const mat3& A, const mat3& B){
+  mat3 out;
   out.m00 = A.m00*B.m00 + A.m01*B.m10 + A.m02*B.m20;
   out.m01 = A.m00*B.m01 + A.m01*B.m11 + A.m02*B.m21;
   out.m02 = A.m00*B.m02 + A.m01*B.m12 + A.m02*B.m22;
@@ -85,7 +79,7 @@ void __host__ __device__ matMult(const mat3& A, const mat3& B, mat3& out){
   out.m21 = A.m20*B.m01 + A.m21*B.m11 + A.m22*B.m21;
   out.m22 = A.m20*B.m02 + A.m21*B.m12 + A.m22*B.m22;
 
-  
+  return out;
 }
 
 __host__ __device__ mat3 matTranspose(const mat3& in){
@@ -105,7 +99,7 @@ __host__ __device__ mat3 matTranspose(const mat3& in){
 
 __host__ __device__ void SVD(const mat3& A,
 		    mat3& U,
-		    vec3& S,
+		    float4& S,
 		    mat3& V){
 
   //see http://www.math.pitt.edu/~sussmanm/2071Spring08/lab09/index.html
@@ -311,7 +305,7 @@ __host__ __device__ void SVD(const mat3& A,
 __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 
   const float equalsEps = 1e-4;
-  double totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
+  float totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
     (A.m01 - B.m01)*(A.m01 - B.m01) +
     (A.m02 - B.m02)*(A.m02 - B.m02) +
     (A.m10 - B.m10)*(A.m10 - B.m10) +
@@ -329,16 +323,16 @@ __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 __host__ __device__ bool checkSVD(const mat3& A){
 
   mat3 U, V;
-  vec3 S;
+  float4 S;
 
   SVD(A, U, S, V);
 
   mat3 uut, vtv, sDiag, uSDiag, prod;
-  matMult(U, matTranspose(U), uut);
-  matMult(matTranspose(V), V, vtv);
+  uut = matMult(U, matTranspose(U));
+  vtv = matMult(matTranspose(V), V);
   sDiag = matDiag(S);
-  matMult(U, sDiag, uSDiag);
-  matMult(uSDiag, matTranspose(V), prod);
+  uSDiag = matMult(U, sDiag);
+  prod = matMult(uSDiag, matTranspose(V));
   //std::cout << "A: " << std::endl;
   //printMatrix(A);
   //std::cout << "Approx A: " << std::endl;
@@ -356,4 +350,39 @@ __host__ __device__ bool checkSVD(const mat3& A){
     matApproxEquals(prod, A);
 
 }
+
+
+__host__ __device__ mat3 pseudoInverse(const mat3& A){
+
+  float epsInv = 1e-4;
+
+  mat3 ret, U, V;
+  float4 S, Sinv;
+  SVD(A, U, S, V);
+
+  Sinv.x = S.x < epsInv ? 0 : 1/S.x;
+  Sinv.y = S.y < epsInv ? 0 : 1/S.y;
+  Sinv.z = S.z < epsInv ? 0 : 1/S.z;
+
+  ret = matMult(V, matMult(matDiag(Sinv), matTranspose(U)));
+
+  return ret;
+}
+
+
+__host__ __device__ float sphKernel(float radius, float test){
+  
+  float RR = radius*radius;
+  float qq = test*test/RR;
+
+  if(qq > 1)
+    return 0;
+  else{
+    float dd = 1 - qq;
+    return 315.0/(64.0*M_PI*RR*radius)*dd*dd*dd;
+    
+  }
+}
+
+
 #endif
