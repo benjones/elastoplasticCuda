@@ -370,4 +370,19 @@ __host__ __device__ mat3 pseudoInverse(const mat3& A){
 }
 
 
+__host__ __device__ float sphKernel(float radius, float test){
+  
+  float RR = radius*radius;
+  float qq = test*test/RR;
+
+  if(qq > 1)
+    return 0;
+  else{
+    float dd = 1 - qq;
+    return 315.0/(64.0*M_PI*RR*radius)*dd*dd*dd;
+    
+  }
+}
+
+
 #endif
