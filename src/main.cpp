@@ -36,7 +36,8 @@ void *d_vbo_buffer = NULL;
 
 // declarations
 extern "C" 
-void launch_kernel( int numParticles, float4* positions, float4* velocities, float dt);
+void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, 
+		    float dt);
 
 void runCuda(struct cudaGraphicsResource **vbo_resource);
 
@@ -66,7 +67,9 @@ float translate_z = -3.0;
 int numParticles = 0;
 float4* positions_h = NULL;
 float4* velocities_h = NULL;
-float4* velocities_d;
+float4* velocities_d = NULL;
+float4* embedded_d = NULL;
+float4* embedded_h = NULL;
 float dt = .001;
 
 /////////////////////////////////////////////////////////////////////////
@@ -77,6 +80,7 @@ int main(int argc, char **argv){
   numParticles = CUBE_SIZE * CUBE_SIZE * CUBE_SIZE;
   positions_h = (float4*) malloc(sizeof(float4)*numParticles);
   velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
+  embedded_h = (float4*) malloc(sizeof(float4)*numParticles);
 
 	cout << "---init particles..." << endl;
 
@@ -89,6 +93,9 @@ int main(int argc, char **argv){
 		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
 		positions_h[i].z = (((float)(ck-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
 		positions_h[i].w = 1.0f;
+					       
+		embedded_h = positions_h; //reference positions start the same as initial
+
 
 		velocities_h[i].x = 0.0f;
 		velocities_h[i].y = -0.5f;
@@ -135,6 +142,17 @@ int main(int argc, char **argv){
 	//     cudaMemcpyHostToDevice);
   cudaMemcpy(velocities_d, velocities_h, sizeof(float4)*numParticles, 
 	     cudaMemcpyHostToDevice);
+
+  res = cudaMalloc((void**)&embedded_d, sizeof(float4)*numParticles);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (Embedded)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+	cudaMemcpy(embedded_d, embedded_h, sizeof(float4)*numParticles,
+		   cudaMemcpyHostToDevice);
+
 
 	cout << "---run CUDA first time..." << endl;
 	// TODO move animation loop into glutMainLoop (display callback)
@@ -208,7 +226,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
     
-	launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, dt);
+    launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));

@@ -41,6 +41,12 @@ inline __host__ __device__ mat3 matIdentity(){
   return ret;
 }
 
+inline __host__ __device__ mat3 matZero(){
+  mat3 ret;
+  ret.m00 = ret.m01 = ret.m02 = ret.m10 = ret.m11 = ret.m12 = ret.m20 = ret.m21 = ret.m22 = 0;
+  return ret;
+}
+
 
 inline void printVector(const float4& v ){
   std::cout << v.x << ' ' << v.y << ' ' <<v.z << std::endl;
@@ -81,6 +87,39 @@ mat3 __host__ __device__ matMult(const mat3& A, const mat3& B){
 
   return out;
 }
+
+
+__host__ __device__ mat3 matAdd(const mat3& A, const mat3& B){
+  mat3 out;
+  out.m00 = A.m00 + B.m00;
+  out.m01 = A.m01 + B.m01;
+  out.m02 = A.m02 + B.m02;
+  out.m10 = A.m10 + B.m10;
+  out.m11 = A.m11 + B.m11;
+  out.m12 = A.m12 + B.m12;
+  out.m20 = A.m20 + B.m20;
+  out.m21 = A.m21 + B.m21;
+  out.m22 = A.m22 + B.m22;
+
+  return out;
+
+}
+
+__host__ __device__ mat3 matScale(const mat3& A, float s){
+  mat3 out = A;
+  out.m00 *= s;
+  out.m01 *= s;
+  out.m02 *= s;
+  out.m10 *= s;
+  out.m11 *= s;
+  out.m12 *= s;
+  out.m20 *= s;
+  out.m21 *= s;
+  out.m22 *= s;
+  return out;
+}
+
+
 
 __host__ __device__ mat3 matTranspose(const mat3& in){
   mat3 out;
@@ -352,13 +391,12 @@ __host__ __device__ bool checkSVD(const mat3& A){
 }
 
 
-__host__ __device__ mat3 pseudoInverse(const mat3& A){
+__host__ __device__ mat3 pseudoInverse(const mat3& U, const float4& S, const mat3& V){
 
   float epsInv = 1e-4;
 
-  mat3 ret, U, V;
-  float4 S, Sinv;
-  SVD(A, U, S, V);
+  mat3 ret;
+  float4 Sinv;
 
   Sinv.x = S.x < epsInv ? 0 : 1/S.x;
   Sinv.y = S.y < epsInv ? 0 : 1/S.y;
@@ -382,6 +420,43 @@ __host__ __device__ float sphKernel(float radius, float test){
     return 315.0/(64.0*M_PI*RR*radius)*dd*dd*dd;
     
   }
+}
+
+__host__ __device__ float distance(const float4& a, const float4& b){
+  
+  float s = (b.x - a.x)*(b.x - a.x) + (b.y - a.y)*(b.y - a.y) + (b.z - a.z)*(b.z - a.z);
+  return sqrtf(s);
+}
+
+
+__host__ __device__ mat3 outerProduct(const float4& a, const float4& b){
+  
+  mat3 ret;
+  ret.m00 = a.x*b.x;
+  ret.m01 = a.x*b.y;
+  ret.m02 = a.x*b.z;
+
+  ret.m10 = a.y*b.x;
+  ret.m11 = a.y*b.y;
+  ret.m12 = a.y*b.z;
+  
+  ret.m20 = a.z*b.x;
+  ret.m21 = a.z*b.y;
+  ret.m22 = a.z*b.z;
+  
+  return ret;
+  
+}
+
+
+
+__host__ __device__ float vecMag(const float4& a){
+  double s = a.x*a.x + a.y*a.y + a.z*a.z;
+  return sqrt(s);
+}
+
+__host__ __device__ float4 vecSub(const float4& a, float4& b){
+  return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, 0);
 }
 
 
