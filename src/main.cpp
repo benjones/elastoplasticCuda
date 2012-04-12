@@ -30,7 +30,6 @@ GLuint vbo;
 struct cudaGraphicsResource *cuda_vbo_resource;
 void *d_vbo_buffer = NULL;
 
-float anim = 0.0;
 
 // declarations
 extern "C" 
@@ -238,7 +237,6 @@ void display(){
     glutSwapBuffers();
     glutPostRedisplay();
 
-    anim += 0.01;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
