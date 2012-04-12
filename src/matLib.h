@@ -7,12 +7,6 @@
 
 #define signum(x) (( x > 0 ) - ( x < 0 ))
 
-struct vec3{
-  float x,y,z;
-
-};
-
-
 struct mat3{
   
   float m00, m01, m02, 
@@ -28,7 +22,7 @@ struct mat2{
 
 __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B);
 
-inline __host__ __device__ mat3 matDiag(const vec3& v){
+inline __host__ __device__ mat3 matDiag(const float4& v){
   mat3 ret;
   ret.m00 = v.x;
   ret.m01 = ret.m02 = 0;
@@ -48,7 +42,7 @@ inline __host__ __device__ mat3 matIdentity(){
 }
 
 
-inline void printVector(const vec3& v ){
+inline void printVector(const float4& v ){
   std::cout << v.x << ' ' << v.y << ' ' <<v.z << std::endl;
 }
 
@@ -105,7 +99,7 @@ __host__ __device__ mat3 matTranspose(const mat3& in){
 
 __host__ __device__ void SVD(const mat3& A,
 		    mat3& U,
-		    vec3& S,
+		    float4& S,
 		    mat3& V){
 
   //see http://www.math.pitt.edu/~sussmanm/2071Spring08/lab09/index.html
@@ -311,7 +305,7 @@ __host__ __device__ void SVD(const mat3& A,
 __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 
   const float equalsEps = 1e-4;
-  double totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
+  float totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
     (A.m01 - B.m01)*(A.m01 - B.m01) +
     (A.m02 - B.m02)*(A.m02 - B.m02) +
     (A.m10 - B.m10)*(A.m10 - B.m10) +
@@ -329,7 +323,7 @@ __host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 __host__ __device__ bool checkSVD(const mat3& A){
 
   mat3 U, V;
-  vec3 S;
+  float4 S;
 
   SVD(A, U, S, V);
 
@@ -363,7 +357,7 @@ __host__ __device__ mat3 pseudoInverse(const mat3& A){
   float epsInv = 1e-4;
 
   mat3 ret, U, V;
-  vec3 S, Sinv;
+  float4 S, Sinv;
   SVD(A, U, S, V);
 
   Sinv.x = S.x < epsInv ? 0 : 1/S.x;

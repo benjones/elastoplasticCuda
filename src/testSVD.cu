@@ -14,13 +14,13 @@ void __global__ svdKernel(mat3* As, bool* results){
 int main(int argc, char ** argv){
 
 
-  mat3 A_h = {1,1,0, 0, 20, 0, 0, 0, 1};
+  /*mat3 A_h = {1,1,0, 0, 20, 0, 0, 0, 1};
 
   mat3 U_h, V_h;
-  vec3 S_h;
+  float4 S_h;
 
   mat3 *A_d, *U_d, *V_d;
-  vec3 *S_d;
+  float4 *S_d;*/
 
 
   mat3 As[numTests];
