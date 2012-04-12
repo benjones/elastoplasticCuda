@@ -26,6 +26,8 @@ struct mat2{
 };
 
 
+__host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B);
+
 inline __host__ __device__ mat3 matDiag(const vec3& v){
   mat3 ret;
   ret.m00 = v.x;
@@ -110,6 +112,8 @@ __host__ __device__ void SVD(const mat3& A,
 
   const float tol = 1.e-7;
 
+  //mat3 checkMat;
+
   U = A; //copy it over to start with
   V.m00 = 1;
   V.m01 = 0;
@@ -179,7 +183,17 @@ __host__ __device__ void SVD(const mat3& A,
       //printMatrix(U);
       //std::cout << "v: ";
       //printMatrix(V);
+
     }
+
+    /*matMult(U, matTranspose(V), checkMat);
+    if (!matApproxEquals(A, checkMat)){
+      std::cout << "error in 0, 1 pair" << std::endl;
+    } else{
+      std::cout << "0, 1 OK" << std::endl;
+      }*/
+      
+
     //i = 0, j = 2
     alpha = U.m00*U.m00 + U.m10*U.m10 + U.m20*U.m20;
     beta =  U.m02*U.m02 + U.m12*U.m12 + U.m22*U.m22;
@@ -189,10 +203,11 @@ __host__ __device__ void SVD(const mat3& A,
       converge = max(converge, abs(gamma)*rsqrt(alpha*beta));
       
       zeta = (beta - alpha)/(2*gamma);
+      
       t = signum(zeta)/(abs(zeta) + sqrtf(1 + zeta*zeta));
       c = rsqrtf(1 + t*t); //1/sqrt(1 + t^2)
       s = c*t;
-      
+  
       //update cols i,j of U:
       t = U.m00;
       U.m00 = c*t - s*U.m02;
@@ -201,8 +216,8 @@ __host__ __device__ void SVD(const mat3& A,
       U.m10 = c*t - s*U.m12;
       U.m12 = s*t + c*U.m12;
       t = U.m20;
-      U.m20 = c*t - s*U.m21;
-      U.m21 = s*t + c*U.m21;
+      U.m20 = c*t - s*U.m22;
+      U.m22 = s*t + c*U.m22;
       
       //update V:
       t = V.m00;
@@ -214,7 +229,19 @@ __host__ __device__ void SVD(const mat3& A,
       t = V.m20;
       V.m20 = c*t - s*V.m22;
       V.m22 = s*t + c*V.m22;
+
+    
+
     }
+
+    /*matMult(U, matTranspose(V), checkMat);
+    if (!matApproxEquals(A, checkMat)){
+      std::cout << "error in 0, 2 pair" << std::endl;
+    }else{
+      std::cout << "0, 2 OK" << std::endl;
+      }*/
+
+
     //i = 1, j = 2
     alpha = U.m01*U.m01 + U.m11*U.m11 + U.m21*U.m21;
     beta =  U.m02*U.m02 + U.m12*U.m12 + U.m22*U.m22;
@@ -236,8 +263,8 @@ __host__ __device__ void SVD(const mat3& A,
       U.m11 = c*t - s*U.m12;
       U.m12 = s*t + c*U.m12;
       t = U.m21;
-      U.m21 = c*t - s*U.m21;
-      U.m21 = s*t + c*U.m21;
+      U.m21 = c*t - s*U.m22;
+      U.m22 = s*t + c*U.m22;
       
       //update V:
       t = V.m01;
@@ -249,7 +276,15 @@ __host__ __device__ void SVD(const mat3& A,
       t = V.m21;
       V.m21 = c*t - s*V.m22;
       V.m22 = s*t + c*V.m22;
+    
+
     }
+    /*matMult(U, matTranspose(V), checkMat);
+    if (!matApproxEquals(A, checkMat)){
+      std::cout << "error in 1, 2 pair" << std::endl;
+    }else{
+      std::cout << "1, 2 OK" << std::endl;
+      }*/
     
     
   }
@@ -273,7 +308,7 @@ __host__ __device__ void SVD(const mat3& A,
   
 }
 
-__host__ /*__device__*/ bool matApproxEquals(const mat3& A, const mat3& B){
+__host__ __device__ bool matApproxEquals(const mat3& A, const mat3& B){
 
   const float equalsEps = 1e-4;
   double totalError = (A.m00 - B.m00)*(A.m00 - B.m00) +
@@ -286,12 +321,12 @@ __host__ /*__device__*/ bool matApproxEquals(const mat3& A, const mat3& B){
     (A.m21 - B.m21)*(A.m21 - B.m21) +
     (A.m22 - B.m22)*(A.m22 - B.m22);
 
-  std::cout << "total error: " << totalError << std::endl;
+  //std::cout << "total error: " << totalError << std::endl;
   return totalError <= equalsEps;
 
 }
 
-__host__ /*__device__*/ bool checkSVD(const mat3& A){
+__host__ __device__ bool checkSVD(const mat3& A){
 
   mat3 U, V;
   vec3 S;
@@ -304,11 +339,18 @@ __host__ /*__device__*/ bool checkSVD(const mat3& A){
   sDiag = matDiag(S);
   matMult(U, sDiag, uSDiag);
   matMult(uSDiag, matTranspose(V), prod);
-  std::cout << "A: " << std::endl;
-  printMatrix(A);
-  std::cout << "Approx A: " << std::endl;
-  printMatrix(prod);
-  std::cout << "u, v, product" << std::endl;
+  //std::cout << "A: " << std::endl;
+  //printMatrix(A);
+  //std::cout << "Approx A: " << std::endl;
+  //printMatrix(prod);
+  //std::cout << "U" << std::endl;
+  //printMatrix(U);
+  //std::cout << "S" << std::endl;
+  //printVector(S);
+  //std::cout << "V" << std::endl;
+  //printMatrix(V);
+  //std::cout << "u, v, product" << std::endl;
+
   return matApproxEquals(uut, matIdentity()) &&
     matApproxEquals(vtv, matIdentity()) &&
     matApproxEquals(prod, A);
