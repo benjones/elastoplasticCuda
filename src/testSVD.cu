@@ -58,7 +58,5 @@ int main(int argc, char ** argv){
   }
 
 
-  std::cout << matApproxEquals(matMult(As[0],pseudoInverse(As[0])), matIdentity()) << std::endl;
-
   return 0;
 }
