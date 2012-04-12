@@ -21,7 +21,9 @@ using namespace std;
 // constants
 const unsigned int window_width = 512;
 const unsigned int window_height = 512;
-
+const  int CUBE_SIZE = 8;
+const  int CUBE_SIZE_SQUARED = CUBE_SIZE * CUBE_SIZE;
+const  int HALF_CUBE_SIZE = CUBE_SIZE >> 1;
 
 // openGL variables
 GLuint vbo;
@@ -45,45 +47,52 @@ void deleteVBO(GLuint* vbo, struct cudaGraphicsResource *vbo_res);
 // rendering callbacks
 void display();
 void keyboard(unsigned char key, int x, int y);
-//void mouse(int button, int state, int x, int y);
-//void motion(int x, int y);
+void mouse(int button, int state, int x, int y);
+void motion(int x, int y);
 
 // -------
 // variables
 // -------
 
 // mouse controls
-	int mouse_old_x, mouse_old_y;
-	int mouse_buttons = 0;
-	float rotate_x = 0.0, rotate_y = 0.0;
-	float translate_z = -3.0;
-	
-	// give these global-file scope for now...
-  	int numParticles = 0;
-  	float4* positions_h = NULL;
-  	float4* velocities_h = NULL;
-	float4* positions_d, *velocities_d;
-  	float dt = .001;
+int mouse_old_x, mouse_old_y;
+int mouse_buttons = 0;
+float rotate_x = 0.0, rotate_y = 0.0;
+float translate_z = -3.0;
 
+// give these global-file scope for now...
+int numParticles = 0;
+float4* positions_h = NULL;
+float4* velocities_h = NULL;
+float4* velocities_d;
+float dt = .001;
 
+/////////////////////////////////////////////////////////////////////////
+//*********************************************************************//
+/////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv){
   	cudaError_t res;	//cuda success or error code
-  numParticles = 10;
+  numParticles = CUBE_SIZE * CUBE_SIZE * CUBE_SIZE;
   positions_h = (float4*) malloc(sizeof(float4)*numParticles);
   velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
 
 	cout << "---init particles..." << endl;
 
-  // init particles
-  for(int i=0; i< numParticles; i++){
-	positions_h[i].x = (float)i;
-	positions_h[i].y = (float)i;
-	positions_h[i].z = (float)i;
-	
-	velocities_h[i].x = 0.0f;
-	velocities_h[i].y = -1.0f;
-	velocities_h[i].z = 0.0f;
-  }
+  	// init particles
+	for(int ci=0; ci<CUBE_SIZE; ci++){
+	for(int cj=0; cj<CUBE_SIZE; cj++){
+	for(int ck=0; ck<CUBE_SIZE; ck++){
+		int i = ci*CUBE_SIZE_SQUARED + cj*CUBE_SIZE + ck;
+		positions_h[i].x = (((float)(ci-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
+		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
+		positions_h[i].z = (((float)(ck-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
+		positions_h[i].w = 1.0f;
+
+		velocities_h[i].x = 0.0f;
+		velocities_h[i].y = -0.5f;
+		velocities_h[i].z = 0.0f;
+		velocities_h[i].w = 1.0f;
+	}}}
 
 
 
@@ -104,13 +113,14 @@ int main(int argc, char **argv){
 	cout << "---set up device memory..." << endl; 
 	// IMPORTANT: apparently you need to have this stuff after cudaGLSetGLDevice...
 
-// TODO --- cudamalloc the positions and velocities...
-	res = cudaMalloc((void**)&positions_d, sizeof(float4)*numParticles);
-	if (res != cudaSuccess){
-		fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
-		fprintf(stderr, "%s\n", cudaGetErrorString(res));
-        return EXIT_FAILURE;
-	}
+	// cudamalloc the positions and velocities...
+	//res = cudaMalloc((void**)&positions_d, sizeof(float4)*numParticles);
+	//if (res != cudaSuccess){
+	//	fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
+	//	fprintf(stderr, "%s\n", cudaGetErrorString(res));
+    //    return EXIT_FAILURE;
+	//}
+	// positions copied over in createVBO...
 	res = cudaMalloc((void**)&velocities_d, sizeof(float4)*numParticles);
 	if (res != cudaSuccess){
 		fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
@@ -119,8 +129,8 @@ int main(int argc, char **argv){
 	}
 
   // set up device memory
-  cudaMemcpy(positions_d, positions_h, sizeof(float4)*numParticles, 
-	     cudaMemcpyHostToDevice);
+  //cudaMemcpy(positions_d, positions_h, sizeof(float4)*numParticles, 
+	//     cudaMemcpyHostToDevice);
   cudaMemcpy(velocities_d, velocities_h, sizeof(float4)*numParticles, 
 	     cudaMemcpyHostToDevice);
 
@@ -135,24 +145,14 @@ int main(int argc, char **argv){
 	glutMainLoop();
 	// ---
 
-//  bool animating = true;
-//  double dt = .001;
-//	int frames = 100;
-//	int frameCnt = 0;
-
-//  while(animating){
-//    launch_kernel(numParticles, positions_d, velocities_d, dt);
-    
-    
-    // TODO - figure out a better exit condition
-//	frameCnt++;
-//	if(frameCnt > frames) animating = false;
-//  }
-
   cudaThreadExit();		// clean up the GPU
   
 }
   
+/////////////////////////////////////////////////////////////////////////
+//*********************************************************************//
+/////////////////////////////////////////////////////////////////////////
+
 // TODO --- fill in method stubs
 // make all the necessary calls to get openGL rolling
 void initGL(int *argc, char **argv){
@@ -162,8 +162,8 @@ void initGL(int *argc, char **argv){
     glutCreateWindow("Elastoplastic Simulation");
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
-	//glutMouseFunc(mouse);
-    //glutMotionFunc(motion);
+	glutMouseFunc(mouse);
+    glutMotionFunc(motion);
 
 	glewInit();
 
@@ -183,6 +183,7 @@ void initGL(int *argc, char **argv){
 	
 }
 
+////////////////////////////////////////////////////////////////////////
 // handles switching between cuda and openGL and calling the kernel fxn
 void runCuda(struct cudaGraphicsResource **vbo_resource)
 {
@@ -200,7 +201,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
     
-	launch_kernel(numParticles, positions_d, velocities_d, dt);
+	launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -208,6 +209,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
 }
 
+/////////////////////////////////////////////////////////////////////////
 void display(){
 
     // run CUDA kernel to generate vertex positions
@@ -239,6 +241,7 @@ void display(){
     anim += 0.01;
 }
 
+///////////////////////////////////////////////////////////////////////////////
 // keyboard callback
 void keyboard(unsigned char key, int /*x*/, int /*y*/)
 {
@@ -249,11 +252,55 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/)
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//! Mouse event handlers
+////////////////////////////////////////////////////////////////////////////////
+void mouse(int button, int state, int x, int y)
+{
+    if (state == GLUT_DOWN) {
+        mouse_buttons |= 1<<button;
+    } else if (state == GLUT_UP) {
+        mouse_buttons = 0;
+    }
+
+    mouse_old_x = x;
+    mouse_old_y = y;
+    glutPostRedisplay();
+}
+
+void motion(int x, int y)
+{
+    float dx, dy;
+    dx = x - mouse_old_x;
+    dy = y - mouse_old_y;
+
+    if (mouse_buttons & 1) {
+        rotate_x += dy * 0.2;
+        rotate_y += dx * 0.2;
+    } else if (mouse_buttons & 4) {
+        translate_z += dy * 0.01;
+    }
+
+    mouse_old_x = x;
+    mouse_old_y = y;
+}
+
+///////////////////////////////////////////////////////////////////
 void cleanup()
 {
     deleteVBO(&vbo, cuda_vbo_resource);
+	cudaFree(velocities_d);
+	if(positions_h){
+		delete positions_h;
+		positions_h = NULL;
+	}
+	if(velocities_h){
+		delete velocities_h;
+		velocities_h = NULL;
+	}
 }
 
+//////////////////////////////////////////////////////////////////////
 void createVBO(GLuint* vbo, struct cudaGraphicsResource **vbo_res, unsigned int vbo_res_flags){
 
     if (vbo) {
@@ -264,7 +311,7 @@ void createVBO(GLuint* vbo, struct cudaGraphicsResource **vbo_res, unsigned int 
 
 		// initialize buffer object
 		unsigned int size = numParticles * 4 * sizeof(float);
-		glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, size, positions_h, GL_DYNAMIC_DRAW);
 	
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
