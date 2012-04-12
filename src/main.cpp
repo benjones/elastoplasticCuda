@@ -25,6 +25,9 @@ const  int CUBE_SIZE = 8;
 const  int CUBE_SIZE_SQUARED = CUBE_SIZE * CUBE_SIZE;
 const  int HALF_CUBE_SIZE = CUBE_SIZE >> 1;
 
+const unsigned int FRAMES_PER_NEIGHBOR_RECALC = 10;
+unsigned int frameCnt = 0;
+
 // openGL variables
 GLuint vbo;
 struct cudaGraphicsResource *cuda_vbo_resource;
@@ -178,6 +181,11 @@ void initGL(int *argc, char **argv){
     glLoadIdentity();
     gluPerspective(60.0, (GLfloat)window_width / (GLfloat) window_height, 0.1, 10.0);
 
+	// set up points for drawing
+    glEnable( GL_POINT_SMOOTH );
+    glPointSize( 4.0 );
+
+
 	CUT_CHECK_ERROR_GL();
 	
 }
@@ -210,6 +218,14 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
 /////////////////////////////////////////////////////////////////////////
 void display(){
+
+	// check if it is time to recalculate neighbors
+	frameCnt++;
+	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
+		// TODO call KNN function
+
+		frameCnt = 0;
+	}
 
     // run CUDA kernel to generate vertex positions
     runCuda(&cuda_vbo_resource);
