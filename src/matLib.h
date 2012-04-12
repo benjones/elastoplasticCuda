@@ -71,8 +71,8 @@ inline void printMatrix(const mat3& m){
   
   }*/
 
-void __host__ __device__ matMult(const mat3& A, const mat3& B, mat3& out){
-  
+mat3 __host__ __device__ matMult(const mat3& A, const mat3& B){
+  mat3 out;
   out.m00 = A.m00*B.m00 + A.m01*B.m10 + A.m02*B.m20;
   out.m01 = A.m00*B.m01 + A.m01*B.m11 + A.m02*B.m21;
   out.m02 = A.m00*B.m02 + A.m01*B.m12 + A.m02*B.m22;
@@ -85,7 +85,7 @@ void __host__ __device__ matMult(const mat3& A, const mat3& B, mat3& out){
   out.m21 = A.m20*B.m01 + A.m21*B.m11 + A.m22*B.m21;
   out.m22 = A.m20*B.m02 + A.m21*B.m12 + A.m22*B.m22;
 
-  
+  return out;
 }
 
 __host__ __device__ mat3 matTranspose(const mat3& in){
@@ -334,11 +334,11 @@ __host__ __device__ bool checkSVD(const mat3& A){
   SVD(A, U, S, V);
 
   mat3 uut, vtv, sDiag, uSDiag, prod;
-  matMult(U, matTranspose(U), uut);
-  matMult(matTranspose(V), V, vtv);
+  uut = matMult(U, matTranspose(U));
+  vtv = matMult(matTranspose(V), V);
   sDiag = matDiag(S);
-  matMult(U, sDiag, uSDiag);
-  matMult(uSDiag, matTranspose(V), prod);
+  uSDiag = matMult(U, sDiag);
+  prod = matMult(uSDiag, matTranspose(V));
   //std::cout << "A: " << std::endl;
   //printMatrix(A);
   //std::cout << "Approx A: " << std::endl;
@@ -356,4 +356,24 @@ __host__ __device__ bool checkSVD(const mat3& A){
     matApproxEquals(prod, A);
 
 }
+
+
+__host__ __device__ mat3 pseudoInverse(const mat3& A){
+
+  float epsInv = 1e-4;
+
+  mat3 ret, U, V;
+  vec3 S, Sinv;
+  SVD(A, U, S, V);
+
+  Sinv.x = S.x < epsInv ? 0 : 1/S.x;
+  Sinv.y = S.y < epsInv ? 0 : 1/S.y;
+  Sinv.z = S.z < epsInv ? 0 : 1/S.z;
+
+  ret = matMult(V, matMult(matDiag(Sinv), matTranspose(U)));
+
+  return ret;
+}
+
+
 #endif
