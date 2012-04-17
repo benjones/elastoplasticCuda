@@ -38,10 +38,16 @@ INCLUDE_DIRECTORIES(
 )
 
 CUDA_ADD_EXECUTABLE(testSVD testSVD.cu)
-CUDA_ADD_EXECUTABLE(epSim world.cu main.cpp)
+CUDA_ADD_EXECUTABLE(epSim 
+	world.cu 
+	knn_cublas_with_indexes.cu 
+	main.cpp
+)
 TARGET_LINK_LIBRARIES(epSim ${OPENGL_LIBRARIES})
 TARGET_LINK_LIBRARIES(epSim ${GLUT_LIBRARIES})
 TARGET_LINK_LIBRARIES(epSim ${CUDA_SDK_ROOT_DIR}/C/common/lib/linux/libGLEW_x86_64.a)
 TARGET_LINK_LIBRARIES(epSim ${CUDA_SDK_ROOT_DIR}/C/lib/libcutil_x86_64.a)
 TARGET_LINK_LIBRARIES(epSim ${CUDA_SDK_ROOT_DIR}/C/lib/librendercheckgl_x86_64.a)
+TARGET_LINK_LIBRARIES(epSim /usr/local/cuda/lib64/libcublas.so)
+
 

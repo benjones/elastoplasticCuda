@@ -35,9 +35,22 @@ void *d_vbo_buffer = NULL;
 
 
 // declarations
+// our simulation code (in world.cu)
 extern "C" 
 void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, 
 		    float dt);
+
+// fast knn implementation 
+// from: http://www.i3s.unice.fr/~creative/KNN/
+// from paper: 	V. Garcia and E. Debreuve and M. Barlaud. 
+//				Fast k nearest neighbor search using GPU. 
+//				In Proceedings of the CVPR Workshop on Computer Vision on GPU, 
+//				Anchorage, Alaska, USA, June 2008
+// corresponding code file: knn_cublas_with_indexes.cu
+// file modified to make knn function extern and remove their main function
+extern "C" 
+void knn(float* ref_host, int ref_width, float* query_host, int query_width, 
+			int height, int k, float* dist_host, int* ind_host);
 
 void runCuda(struct cudaGraphicsResource **vbo_resource);
 
