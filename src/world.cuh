@@ -2,7 +2,7 @@
 #define _world_cuh_ 
 
 #define BLOCK_SIZE 32
-#define GROUND_HEIGHT -1.0f
+#define GROUND_HEIGHT -2.0f
 
 // TODO - we may want to turn this into an aligned struct for coalesced memory access...
 // USE "float4" cuda struct instead of vec3 !!!!!!!!!!!!!!!!

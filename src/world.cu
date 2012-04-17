@@ -18,6 +18,7 @@ __global__ void step(
 	   	   	float4* velocities,
 			float4* embedded,
 			float4* forces,
+			float* masses,
 	   	   	float dt){
 
 
@@ -58,7 +59,8 @@ __global__ void step(
 	
 
 	float volume = sqrtf(AS.x*AS.y*AS.z/(1 + wSum*wSum*wSum));
-	float mass = density/volume;
+	float mass = 1.0f;//density/volume;
+	masses[idx] = mass;
 
 	mat3 Ainv = pseudoInverse(AU, AS, AV);;
 	mat3 F = matMult(rhs1,Ainv);
@@ -80,10 +82,10 @@ __global__ void step(
 	stress = matMult(matMult(FU, stress), matTranspose(FV));
 	
 	//gravity
-	atomicAdd(&forces[idx].y, -9.81f*mass);
+	atomicAdd(&(forces[idx].y), -9.81f*mass);
 	
 	//add forces:
-	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
+	/*mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
 	for(int i = 0; i < numParticles; ++i){
 	  if(i != idx){
 	    //recompute vector and weights...
@@ -102,26 +104,10 @@ __global__ void step(
 	    //todo damping forces
     
 	  }
-	}
+	  }*/
 	
 
-	//symplectic euler:
-	velocities[idx].x += forces[idx].x*dt/mass;
-	velocities[idx].y += forces[idx].y*dt/mass;
-	velocities[idx].z += forces[idx].z*dt/mass;
 
-  	positions[idx].x += velocities[idx].x*dt;
-  	positions[idx].y += velocities[idx].y*dt;
-  	positions[idx].z += velocities[idx].z*dt;
-
-
-
-	// check boundaries
-	if(positions[idx].y < GROUND_HEIGHT) {
-	  
-	  positions[idx].y = GROUND_HEIGHT;
-	  velocities[idx].y = 0;
-	}
 }
 
 __global__ void clearForces(int numParticles, float4* forces){
@@ -133,6 +119,35 @@ __global__ void clearForces(int numParticles, float4* forces){
   }
 }
 
+__global__ void integrateForces(int numParticles, float4* forces,
+				float4* positions,
+				float4* velocities,
+				float* masses,
+				float dt){
+  
+  int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+  if(idx < numParticles){
+    float mass = 1.0f;//masses[idx];
+    //symplectic euler:
+    velocities[idx].x += forces[idx].x*dt/mass;
+    velocities[idx].y += forces[idx].y*dt/mass;
+    velocities[idx].z += forces[idx].z*dt/mass;
+    
+    positions[idx].x += velocities[idx].x*dt;
+    positions[idx].y += velocities[idx].y*dt;
+    positions[idx].z += velocities[idx].z*dt;
+    
+    
+    
+    // check boundaries
+    if(positions[idx].y < GROUND_HEIGHT) {
+      
+      positions[idx].y = GROUND_HEIGHT;
+      //velocities[idx].y = 0;
+    }
+  }
+}
+
 
 // Wrapper for the __global__ call that sets up the kernel call
 extern "C" void launch_kernel(
@@ -141,6 +156,7 @@ extern "C" void launch_kernel(
 	   	float4* velocities,
 		float4* embedded,
 		float4* forces,
+		float* masses,
 	   	float dt)
 {
 	dim3 threadLayout(BLOCK_SIZE, 1, 1);
@@ -151,5 +167,29 @@ extern "C" void launch_kernel(
 
 	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces);
 	cudaThreadSynchronize();
-   	step<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded,forces,dt);
+	cudaError_t err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in clear forces kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
+
+   	step<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded,forces, masses, dt);
+	cudaThreadSynchronize();
+
+	err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in step kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
+	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, dt);
+	cudaThreadSynchronize();
+
+	err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in integrate kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
 }

@@ -37,6 +37,7 @@ void *d_vbo_buffer = NULL;
 // declarations
 extern "C" 
 void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces,
+		    float* masses,
 		    float dt);
 
 void runCuda(struct cudaGraphicsResource **vbo_resource);
@@ -71,8 +72,9 @@ float4* velocities_d = NULL;
 float4* embedded_d = NULL;
 float4* embedded_h = NULL;
 float4* forces_d = NULL;
+float* masses_d;
 
-float dt = .001;
+float dt = .01;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -164,6 +166,14 @@ int main(int argc, char **argv){
 	}
 
 
+	res = cudaMalloc((void**)&masses_d, sizeof(float)*numParticles);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (masses)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+
 
 	cout << "---run CUDA first time..." << endl;
 	// TODO move animation loop into glutMainLoop (display callback)
@@ -238,7 +248,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
     
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
-		  forces_d, dt);
+		  forces_d, masses_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -260,7 +270,7 @@ void display(){
     // run CUDA kernel to generate vertex positions
     runCuda(&cuda_vbo_resource);
 
-    std::cout << "computed frame: " << frameCnt << std::endl;
+    //std::cout << "computed frame: " << frameCnt << std::endl;
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
