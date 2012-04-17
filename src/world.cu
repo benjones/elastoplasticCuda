@@ -82,10 +82,11 @@ __global__ void step(
 	stress = matMult(matMult(FU, stress), matTranspose(FV));
 	
 	//gravity
-	atomicAdd(&(forces[idx].y), -9.81f*mass);
+	//atomicAdd(&(forces[idx].y), -9.81f*mass);
+	forces[idx].y -= 9.81f*mass;
 	
 	//add forces:
-	/*mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
+	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
 	for(int i = 0; i < numParticles; ++i){
 	  if(i != idx){
 	    //recompute vector and weights...
@@ -93,18 +94,21 @@ __global__ void step(
 	    float wij = sphKernel(kernelRadius, vecMag(vij));
 	    float4 force = vecScale(matVecMult(FE, vij),wij);
 	    
-	    atomicAdd(&(forces[i].x), force.x);
-	    atomicAdd(&(forces[i].y), force.y);
-	    atomicAdd(&(forces[i].z), force.z);
+	    //atomicAdd(&(forces[i].x), force.x);
+	    //atomicAdd(&(forces[i].y), force.y);
+	    //atomicAdd(&(forces[i].z), force.z);
 	    
-	    atomicAdd(&(forces[idx].x), -force.x);
-	    atomicAdd(&(forces[idx].y), -force.y);
-	    atomicAdd(&(forces[idx].z), -force.z);
+	    //atomicAdd(&(forces[idx].x), -force.x);
+	    //atomicAdd(&(forces[idx].y), -force.y);
+	    //atomicAdd(&(forces[idx].z), -force.z);
+		forces[idx].x -= force.x;
+		forces[idx].y -= force.y;
+		forces[idx].z -= force.z;
 	
 	    //todo damping forces
     
 	  }
-	  }*/
+	  }
 	
 
 
@@ -127,7 +131,7 @@ __global__ void integrateForces(int numParticles, float4* forces,
   
   int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
   if(idx < numParticles){
-    float mass = 1.0f;//masses[idx];
+    float mass = 100.0f;//masses[idx];
     //symplectic euler:
     velocities[idx].x += forces[idx].x*dt/mass;
     velocities[idx].y += forces[idx].y*dt/mass;
@@ -164,13 +168,20 @@ extern "C" void launch_kernel(
 	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
 	dim3 blockLayout(blockCnt, 1);
     // execute the kernel
-
+	//std::cout << "-- kernel launch --"  << std::endl;
+	cudaError_t err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error before launching kernel fxns: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	} 
 	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces);
 	cudaThreadSynchronize();
-	cudaError_t err = cudaGetLastError();
+	err = cudaGetLastError();
 	if(cudaSuccess != err){
 	  std::cout << "error in clear forces kernel: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
+	} else {
+		//std::cout << "*** clear forces success!" << std::endl;
 	}
 
 
@@ -181,6 +192,8 @@ extern "C" void launch_kernel(
 	if(cudaSuccess != err){
 	  std::cout << "error in step kernel: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
+	} else {
+		//std::cout << "*** step success!" << std::endl;
 	}
 
 	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, dt);
@@ -190,6 +203,8 @@ extern "C" void launch_kernel(
 	if(cudaSuccess != err){
 	  std::cout << "error in integrate kernel: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
+	} else {
+		//std::cout << "*** integrate success!" << std::endl;
 	}
 
 }

@@ -20,7 +20,7 @@ else (OPENGL_FOUND)
    MESSAGE("OpenGL environment missing")
 endif (OPENGL_FOUND)
 
-SET(CUDA_NVCC_FLAGS "-arch=sm_20") 
+SET(CUDA_NVCC_FLAGS "-arch=compute_13" "-code=sm_13") 
 SET(CUDA_SDK_ROOT_DIR "/uusoc/scratch/users/preethik/NVIDIA_GPU_Computing_SDK")
 
 #LINK_LIBRARIES(

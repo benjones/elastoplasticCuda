@@ -99,6 +99,18 @@ int main(int argc, char **argv){
   velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
   embedded_h = (float4*) malloc(sizeof(float4)*numParticles);
 
+	// check device properties
+	cudaDeviceProp dProp;
+	int dId;
+	cudaGetDevice(&dId);
+	res = cudaGetDeviceProperties(&dProp, dId);
+	if(res != cudaSuccess){
+		cout << "Error checking device: " << cudaGetErrorString(res) << endl;
+		exit(1);
+	} else {
+		cout <<"Compute capability: " << dProp.major << "-" << dProp.minor << endl;
+	}
+
 	cout << "---init particles..." << endl;
 
   	// init particles
