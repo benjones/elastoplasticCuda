@@ -2,6 +2,8 @@
 #include "world.cuh"
 #include "matLib.h"
 
+#include "device_functions.h"
+
 const float kernelRadius = .6f;
 
 const float density = 1000.0f;
@@ -15,6 +17,8 @@ __global__ void step(
 			float4* positions,
 	   	   	float4* velocities,
 			float4* embedded,
+			float4* forces,
+			float* masses,
 	   	   	float dt){
 
 
@@ -52,9 +56,11 @@ __global__ void step(
 	float4 AS;
 	SVD(A, AU, AS, AV);
 
+	
 
 	float volume = sqrtf(AS.x*AS.y*AS.z/(1 + wSum*wSum*wSum));
-	float mass = density/volume;
+	float mass = 1.0f;//density/volume;
+	masses[idx] = mass;
 
 	mat3 Ainv = pseudoInverse(AU, AS, AV);;
 	mat3 F = matMult(rhs1,Ainv);
@@ -75,19 +81,73 @@ __global__ void step(
 	//un-diagonalize
 	stress = matMult(matMult(FU, stress), matTranspose(FV));
 	
-
+	//gravity
+	atomicAdd(&(forces[idx].y), -9.81f*mass);
+	
+	//add forces:
+	/*mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
+	for(int i = 0; i < numParticles; ++i){
+	  if(i != idx){
+	    //recompute vector and weights...
+	    float4 vij = vecSub(embedded[i], embedded[idx]) ;
+	    float wij = sphKernel(kernelRadius, vecMag(vij));
+	    float4 force = vecScale(matVecMult(FE, vij),wij);
+	    
+	    atomicAdd(&(forces[i].x), force.x);
+	    atomicAdd(&(forces[i].y), force.y);
+	    atomicAdd(&(forces[i].z), force.z);
+	    
+	    atomicAdd(&(forces[idx].x), -force.x);
+	    atomicAdd(&(forces[idx].y), -force.y);
+	    atomicAdd(&(forces[idx].z), -force.z);
+	
+	    //todo damping forces
+    
+	  }
+	  }*/
 	
 
 
-  	positions[idx].x += velocities[idx].x*dt;
-  	positions[idx].y += velocities[idx].y*dt;
-  	positions[idx].z += velocities[idx].z*dt;
-
-
-
-	// check boundaries
-	if(positions[idx].y < GROUND_HEIGHT) positions[idx].y = GROUND_HEIGHT;
 }
+
+__global__ void clearForces(int numParticles, float4* forces){
+  int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+  if(idx < numParticles){
+    forces[idx].x = 0;
+    forces[idx].y = 0;
+    forces[idx].z = 0;
+  }
+}
+
+__global__ void integrateForces(int numParticles, float4* forces,
+				float4* positions,
+				float4* velocities,
+				float* masses,
+				float dt){
+  
+  int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+  if(idx < numParticles){
+    float mass = 1.0f;//masses[idx];
+    //symplectic euler:
+    velocities[idx].x += forces[idx].x*dt/mass;
+    velocities[idx].y += forces[idx].y*dt/mass;
+    velocities[idx].z += forces[idx].z*dt/mass;
+    
+    positions[idx].x += velocities[idx].x*dt;
+    positions[idx].y += velocities[idx].y*dt;
+    positions[idx].z += velocities[idx].z*dt;
+    
+    
+    
+    // check boundaries
+    if(positions[idx].y < GROUND_HEIGHT) {
+      
+      positions[idx].y = GROUND_HEIGHT;
+      //velocities[idx].y = 0;
+    }
+  }
+}
+
 
 // Wrapper for the __global__ call that sets up the kernel call
 extern "C" void launch_kernel(
@@ -95,6 +155,8 @@ extern "C" void launch_kernel(
 		float4* positions,
 	   	float4* velocities,
 		float4* embedded,
+		float4* forces,
+		float* masses,
 	   	float dt)
 {
 	dim3 threadLayout(BLOCK_SIZE, 1, 1);
@@ -102,5 +164,32 @@ extern "C" void launch_kernel(
 	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
 	dim3 blockLayout(blockCnt, 1);
     // execute the kernel
-   	step<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded,dt);
+
+	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces);
+	cudaThreadSynchronize();
+	cudaError_t err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in clear forces kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
+
+   	step<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded,forces, masses, dt);
+	cudaThreadSynchronize();
+
+	err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in step kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
+	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, dt);
+	cudaThreadSynchronize();
+
+	err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in integrate kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	}
+
 }

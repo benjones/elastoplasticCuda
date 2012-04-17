@@ -37,7 +37,8 @@ void *d_vbo_buffer = NULL;
 // declarations
 // our simulation code (in world.cu)
 extern "C" 
-void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, 
+void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces,
+		    float* masses,
 		    float dt);
 
 // fast knn implementation 
@@ -83,7 +84,10 @@ float4* velocities_h = NULL;
 float4* velocities_d = NULL;
 float4* embedded_d = NULL;
 float4* embedded_h = NULL;
-float dt = .001;
+float4* forces_d = NULL;
+float* masses_d;
+
+float dt = .01;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -167,6 +171,23 @@ int main(int argc, char **argv){
 		   cudaMemcpyHostToDevice);
 
 
+	res = cudaMalloc((void**)&forces_d, sizeof(float4)*numParticles);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (forces)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+
+	res = cudaMalloc((void**)&masses_d, sizeof(float)*numParticles);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (masses)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+
+
 	cout << "---run CUDA first time..." << endl;
 	// TODO move animation loop into glutMainLoop (display callback)
 	// run the cuda part
@@ -239,7 +260,8 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
     
-    launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, dt);
+    launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
+		  forces_d, masses_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -261,6 +283,7 @@ void display(){
     // run CUDA kernel to generate vertex positions
     runCuda(&cuda_vbo_resource);
 
+    //std::cout << "computed frame: " << frameCnt << std::endl;
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

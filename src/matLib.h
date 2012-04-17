@@ -460,4 +460,21 @@ __host__ __device__ float4 vecSub(const float4& a, float4& b){
 }
 
 
+__host__ __device__ float4 matVecMult(const mat3& m, const float4& v){
+  float4 ret;
+  ret.x = m.m00*v.x + m.m01*v.y + m.m02*v.z;
+  ret.y = m.m10*v.x + m.m11*v.y + m.m12*v.z;
+  ret.z = m.m20*v.x + m.m21*v.y + m.m22*v.z;
+  return ret;
+
+}
+
+__host__ __device__ float4 vecScale(const float4& v, float s){
+  float4 ret;
+  ret.x = v.x*s;
+  ret.y = v.y*s;
+  ret.z = v.z*s;
+  return ret;
+}
+
 #endif
