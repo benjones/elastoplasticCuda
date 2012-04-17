@@ -11,13 +11,15 @@ const float density = 1000.0f;
 const float lambda = 10000.0f;
 const float mu = 10000.0f;
 
+const float forceIntMultiplier = 10000.0f;		//integer force value = float * multiplier
 
-__global__ void step(
+__global__ void calculateForcesForNextFrame(
 			int numParticles,
 			float4* positions,
 	   	   	float4* velocities,
 			float4* embedded,
 			float4* forces,
+			int4* externalForces,
 			float* masses,
 	   	   	float dt){
 
@@ -97,6 +99,12 @@ __global__ void step(
 	    //atomicAdd(&(forces[i].x), force.x);
 	    //atomicAdd(&(forces[i].y), force.y);
 	    //atomicAdd(&(forces[i].z), force.z);
+
+		// multiply and convert to int so atomic add can be used... 
+		// later sync and convert back so that external forces can be incorporated
+		atomicAdd(&(externalForces[i].x), (int)(force.x*forceIntMultiplier));
+	    atomicAdd(&(externalForces[i].y), (int)(force.y*forceIntMultiplier));
+	    atomicAdd(&(externalForces[i].z), (int)(force.z*forceIntMultiplier));
 	    
 	    //atomicAdd(&(forces[idx].x), -force.x);
 	    //atomicAdd(&(forces[idx].y), -force.y);
@@ -114,13 +122,30 @@ __global__ void step(
 
 }
 
-__global__ void clearForces(int numParticles, float4* forces){
+__global__ void clearForces(int numParticles, float4* forces, int4* externalForces){
   int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
   if(idx < numParticles){
     forces[idx].x = 0;
     forces[idx].y = 0;
     forces[idx].z = 0;
+
+	externalForces[idx].x = 0;
+    externalForces[idx].y = 0;
+    externalForces[idx].z = 0;
   }
+}
+
+__global__ void incorporateExternalForces(
+			int numParticles,
+			float4* forces,
+			int4* externalForces)
+{
+	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+	if(idx < numParticles){
+	    forces[idx].x += ((float)externalForces[idx].x)/forceIntMultiplier;
+	    forces[idx].y += ((float)externalForces[idx].y)/forceIntMultiplier;
+	    forces[idx].z += ((float)externalForces[idx].z)/forceIntMultiplier;
+  	}
 }
 
 __global__ void integrateForces(int numParticles, float4* forces,
@@ -160,6 +185,7 @@ extern "C" void launch_kernel(
 	   	float4* velocities,
 		float4* embedded,
 		float4* forces,
+		int4* externalForces,
 		float* masses,
 	   	float dt)
 {
@@ -174,7 +200,7 @@ extern "C" void launch_kernel(
 	  std::cout << "error before launching kernel fxns: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
 	} 
-	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces);
+	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces, externalForces);
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(cudaSuccess != err){
@@ -185,15 +211,26 @@ extern "C" void launch_kernel(
 	}
 
 
-   	step<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded,forces, masses, dt);
+   	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded, forces, externalForces, masses, dt);
 	cudaThreadSynchronize();
 
 	err = cudaGetLastError();
 	if(cudaSuccess != err){
-	  std::cout << "error in step kernel: " << cudaGetErrorString(err) << std::endl;
+	  std::cout << "error in calcForce kernel: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
 	} else {
-		//std::cout << "*** step success!" << std::endl;
+		//std::cout << "*** calcForce success!" << std::endl;
+	}
+
+   	incorporateExternalForces<<< blockLayout, threadLayout >>>(numParticles, forces, externalForces);
+	cudaThreadSynchronize();
+
+	err = cudaGetLastError();
+	if(cudaSuccess != err){
+	  std::cout << "error in incorpForces kernel: " << cudaGetErrorString(err) << std::endl;
+	  exit(1);
+	} else {
+		//std::cout << "*** incorpForces success!" << std::endl;
 	}
 
 	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, dt);

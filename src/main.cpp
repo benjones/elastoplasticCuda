@@ -37,7 +37,7 @@ void *d_vbo_buffer = NULL;
 // declarations
 // our simulation code (in world.cu)
 extern "C" 
-void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces,
+void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces, int4* externalForces,
 		    float* masses,
 		    float dt);
 
@@ -85,6 +85,7 @@ float4* velocities_d = NULL;
 float4* embedded_d = NULL;
 float4* embedded_h = NULL;
 float4* forces_d = NULL;
+int4* externalForces_d = NULL;
 float* masses_d;
 
 float dt = .01;
@@ -189,7 +190,12 @@ int main(int argc, char **argv){
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
         return EXIT_FAILURE;
 	}
-
+	res = cudaMalloc((void**)&externalForces_d, sizeof(int4)*numParticles);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (externalforces)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
 
 	res = cudaMalloc((void**)&masses_d, sizeof(float)*numParticles);
 	if (res != cudaSuccess){
@@ -273,7 +279,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
     
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
-		  forces_d, masses_d, dt);
+		  forces_d, externalForces_d, masses_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
