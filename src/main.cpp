@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-//#include "world.cuh"
+#include "world.cuh"
 using namespace std;
 
 #define MAX(a,b) ((a > b) ? a : b)
@@ -39,6 +39,7 @@ void *d_vbo_buffer = NULL;
 extern "C" 
 void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces, int4* externalForces,
 		    float* masses,
+			int* knnIndices,
 		    float dt);
 
 // fast knn implementation 
@@ -49,11 +50,17 @@ void launch_kernel( int numParticles, float4* positions, float4* velocities, flo
 //				Anchorage, Alaska, USA, June 2008
 // corresponding code file: knn_cublas_with_indexes.cu
 // file modified to make knn function extern and remove their main function
+// OUTPUT FORMAT (dist_host, ind_host): cols = particle, rows=neighbor
 extern "C" 
 void knn(float* ref_host, int ref_width, float* query_host, int query_width, 
 			int height, int k, float* dist_host, int* ind_host);
 
+// transpose the memory layout on the gpu so that it can be used by the knn function
+extern "C" 
+void prepPointsForKNN(int numParticles, float4* positions_d, float* knnParticles_d);
+
 void runCuda(struct cudaGraphicsResource **vbo_resource);
+void updateNeighbors(float4* positions_d);
 
 // --- openGL ---
 void initGL(int *argc, char **argv);
@@ -88,17 +95,29 @@ float4* forces_d = NULL;
 int4* externalForces_d = NULL;
 float* masses_d;
 
-float dt = .01;
+// separate memory layout used by KNN code (rows=fields, cols=particles)
+float* knnParticles_h = NULL;	// particles in format used by KNN; size: numParticlesx3rows
+float* knnParticles_d = NULL;	// knn particles transposed on gpu before copy to host
+float* knnDistances_h = NULL;	// distances returned by knn function; size: numParticlesxNUM_NEIGHBORS
+int* knnIndices_h = NULL;		// indices returned from knn function; size: numParticlesxNUM_NEIGHBORS
+int* knnIndices_d = NULL;		// indices copied to gpu
+
+float dt = .001;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
 /////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv){
   	cudaError_t res;	//cuda success or error code
-  numParticles = CUBE_SIZE * CUBE_SIZE * CUBE_SIZE;
-  positions_h = (float4*) malloc(sizeof(float4)*numParticles);
-  velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
-  embedded_h = (float4*) malloc(sizeof(float4)*numParticles);
+  
+	numParticles = CUBE_SIZE * CUBE_SIZE * CUBE_SIZE;
+  	positions_h = (float4*) malloc(sizeof(float4)*numParticles);
+  	velocities_h = (float4*) malloc(sizeof(float4)*numParticles);
+  	embedded_h = (float4*) malloc(sizeof(float4)*numParticles);
+
+	knnParticles_h = (float*) malloc(sizeof(float)*numParticles*3);
+	knnDistances_h = (float*) malloc(sizeof(float)*numParticles*NUM_NEIGHBORS);
+	knnIndices_h = (int*) malloc(sizeof(int)*numParticles*NUM_NEIGHBORS);
 
 	// check device properties
 	cudaDeviceProp dProp;
@@ -162,7 +181,21 @@ int main(int argc, char **argv){
 	// positions copied over in createVBO...
 	res = cudaMalloc((void**)&velocities_d, sizeof(float4)*numParticles);
 	if (res != cudaSuccess){
-		fprintf (stderr, "!!!! gpu memory allocation error (B)\n");
+		fprintf (stderr, "!!!! gpu memory allocation error (velocites)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+	res = cudaMalloc((void**)&knnIndices_d, sizeof(int)*numParticles*NUM_NEIGHBORS);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (neighborIds)\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+        return EXIT_FAILURE;
+	}
+
+	res = cudaMalloc((void**)&knnParticles_d, sizeof(int)*numParticles*3);
+	if (res != cudaSuccess){
+		fprintf (stderr, "!!!! gpu memory allocation error (neighborIds)\n");
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
         return EXIT_FAILURE;
 	}
@@ -264,7 +297,6 @@ void initGL(int *argc, char **argv){
 // handles switching between cuda and openGL and calling the kernel fxn
 void runCuda(struct cudaGraphicsResource **vbo_resource)
 {
-// TODO - set this to draw points from positions buffer...
     // map OpenGL buffer object for writing from CUDA
     float4 *dptr;
 
@@ -277,9 +309,18 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
+	// check if it is time to recalculate neighbors
+	if(frameCnt==0){
+		//cout << "----update neighbors" << endl;
+		updateNeighbors(dptr);
+	}
+	frameCnt++;
+	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
+		frameCnt = 0;
+	}
     
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
-		  forces_d, externalForces_d, masses_d, dt);
+		  forces_d, externalForces_d, masses_d, knnIndices_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -288,15 +329,25 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 }
 
 /////////////////////////////////////////////////////////////////////////
+// runs knn and copies nearest neighbor indices to GPU
+void updateNeighbors(float4* positions_d){
+	// transpose and copy point positions into KNN format on host
+	prepPointsForKNN(numParticles, positions_d, knnParticles_d);
+
+	// copy prepared positions back to host
+	cudaMemcpy(knnParticles_h, knnParticles_d, sizeof(float)*numParticles*3, cudaMemcpyDeviceToHost);
+	
+	// call knn function
+	knn(knnParticles_h, numParticles, knnParticles_h, numParticles, 
+			3, NUM_NEIGHBORS, knnDistances_h, knnIndices_h);
+
+	// copy neighbor indices to GPU
+	cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
+}
+
+/////////////////////////////////////////////////////////////////////////
 void display(){
 
-	// check if it is time to recalculate neighbors
-	frameCnt++;
-	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
-		// TODO call KNN function
-
-		frameCnt = 0;
-	}
 
     // run CUDA kernel to generate vertex positions
     runCuda(&cuda_vbo_resource);
@@ -352,7 +403,7 @@ void mouse(int button, int state, int x, int y)
     mouse_old_x = x;
     mouse_old_y = y;
     glutPostRedisplay();
-}
+}	
 
 void motion(int x, int y)
 {

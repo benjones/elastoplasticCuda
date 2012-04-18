@@ -4,14 +4,16 @@
 
 #include "device_functions.h"
 
-const float kernelRadius = .6f;
+#define BLOCK_SIZE 64
+
+const float kernelRadius = 1.5f;
 
 const float density = 1000.0f;
 
-const float lambda = 10000.0f;
-const float mu = 10000.0f;
+const float lambda = 1000000.0f;
+const float mu = 1000000.0f;
 
-const float forceIntMultiplier = 10000.0f;		//integer force value = float * multiplier
+const float forceIntMultiplier = 100000.0f;		//integer force value = float * multiplier
 
 __global__ void calculateForcesForNextFrame(
 			int numParticles,
@@ -21,6 +23,7 @@ __global__ void calculateForcesForNextFrame(
 			float4* forces,
 			int4* externalForces,
 			float* masses,
+			int* knnIndices,
 	   	   	float dt){
 
 
@@ -60,8 +63,8 @@ __global__ void calculateForcesForNextFrame(
 
 	
 
-	float volume = sqrtf(AS.x*AS.y*AS.z/(1 + wSum*wSum*wSum));
-	float mass = 1.0f;//density/volume;
+	float volume = sqrtf(AS.x*AS.y*AS.z/(wSum*wSum*wSum));
+	float mass = density/volume;
 	masses[idx] = mass;
 
 	mat3 Ainv = pseudoInverse(AU, AS, AV);;
@@ -152,11 +155,12 @@ __global__ void integrateForces(int numParticles, float4* forces,
 				float4* positions,
 				float4* velocities,
 				float* masses,
+				int* knnIndices,
 				float dt){
   
   int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
   if(idx < numParticles){
-    float mass = 100.0f;//masses[idx];
+    float mass = masses[idx];
     //symplectic euler:
     velocities[idx].x += forces[idx].x*dt/mass;
     velocities[idx].y += forces[idx].y*dt/mass;
@@ -187,6 +191,7 @@ extern "C" void launch_kernel(
 		float4* forces,
 		int4* externalForces,
 		float* masses,
+		int* knnIndices,
 	   	float dt)
 {
 	dim3 threadLayout(BLOCK_SIZE, 1, 1);
@@ -211,7 +216,7 @@ extern "C" void launch_kernel(
 	}
 
 
-   	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded, forces, externalForces, masses, dt);
+   	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded, forces, externalForces, masses, knnIndices, dt);
 	cudaThreadSynchronize();
 
 	err = cudaGetLastError();
@@ -233,7 +238,7 @@ extern "C" void launch_kernel(
 		//std::cout << "*** incorpForces success!" << std::endl;
 	}
 
-	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, dt);
+	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, knnIndices, dt);
 	cudaThreadSynchronize();
 
 	err = cudaGetLastError();
@@ -245,3 +250,27 @@ extern "C" void launch_kernel(
 	}
 
 }
+
+/////////////////////////// KNN STUFF /////////////////////////
+__global__ void transposePositions(int numParticles, float4* positions_d, float* knnParticles_d){
+	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+  	if(idx < numParticles){
+		knnParticles_d[idx] = positions_d[idx].x;
+		knnParticles_d[numParticles + idx] = positions_d[idx].y;
+		knnParticles_d[(numParticles << 1) + idx] = positions_d[idx].z;
+	}
+
+}
+
+// external wrapper to be called in main.cpp
+extern "C" void prepPointsForKNN(int numParticles, float4* positions_d, float* knnParticles_d){
+	// transpose positions into knn format
+	dim3 threadLayout(BLOCK_SIZE, 1, 1);
+	int blockCnt = numParticles / BLOCK_SIZE;
+	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
+	dim3 blockLayout(blockCnt, 1);
+	transposePositions<<<blockLayout, threadLayout>>>(numParticles, positions_d, knnParticles_d);
+}
+
+
+
