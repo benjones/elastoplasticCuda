@@ -16,6 +16,7 @@
 #include <iostream>
 
 #include "world.cuh"
+#include "cuPrintf.cuh"
 using namespace std;
 
 #define MAX(a,b) ((a > b) ? a : b)
@@ -65,6 +66,10 @@ void knn(float* ref_host, int ref_width, float* query_host, int query_width,
 extern "C" 
 void prepPointsForKNN(int numParticles, float4* positions_d, float* knnParticles_d);
 
+// for debugging -- print out device knn indices
+extern "C"
+void launchValidateIndices(int numParticles, int* knnIndices);
+
 void runCuda(struct cudaGraphicsResource **vbo_resource);
 void updateNeighbors(float4* positions_d);
 
@@ -108,7 +113,7 @@ float* knnDistances_h = NULL;	// distances returned by knn function; size: numPa
 int* knnIndices_h = NULL;		// indices returned from knn function; size: numParticlesxNUM_NEIGHBORS
 int* knnIndices_d = NULL;		// indices copied to gpu
 
-float dt = .001;
+float dt = .01;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -145,7 +150,7 @@ int main(int argc, char **argv){
 	for(int ck=0; ck<CUBE_SIZE; ck++){
 		int i = ci*CUBE_SIZE_SQUARED + cj*CUBE_SIZE + ck;
 		positions_h[i].x = (((float)(ci-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
-		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
+		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) + 2.0f ;
 		positions_h[i].z = (((float)(ck-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
 		positions_h[i].w = 1.0f;
 					       
@@ -246,12 +251,16 @@ int main(int argc, char **argv){
         return EXIT_FAILURE;
 	}
 
+	cudaPrintfInit();
 
+	//launchValidateIndices(numParticles, knnIndices_d);
 
 	cout << "---run CUDA first time..." << endl;
 	// TODO move animation loop into glutMainLoop (display callback)
 	// run the cuda part
 	runCuda(&cuda_vbo_resource);
+
+	//launchValidateIndices(numParticles, knnIndices_d);
 
 /*
 	// check forces
@@ -358,11 +367,15 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
     cutilSafeCall(cudaGraphicsUnmapResources(1, vbo_resource, 0));
 
+	// any messages from kernel?
+	cudaPrintfDisplay(stdout, true);
 }
 
 /////////////////////////////////////////////////////////////////////////
 // runs knn and copies nearest neighbor indices to GPU
 void updateNeighbors(float4* positions_d){
+	cudaError_t res;
+
 	// transpose and copy point positions into KNN format on host
 	prepPointsForKNN(numParticles, positions_d, knnParticles_d);
 
@@ -375,15 +388,40 @@ void updateNeighbors(float4* positions_d){
 			3, NUM_NEIGHBORS, knnDistances_h, knnIndices_h);
 
 	cudaThreadSynchronize();
-
-	//std::cout << "neighbors: " ;
+/*
+	std::cout << "neighbors: \n" ;
 	//for(int i = 0; i < numParticles*NUM_NEIGHBORS; ++i)
 	//  std::cout << knnIndices_h[i] << " ";
 	//std::cout << std::endl;
-
+	for(int p=0; p<16; p++){
+		cout << p << ": ";
+		for(int n=0; n<NUM_NEIGHBORS; n++){
+			cout << knnIndices_h[numParticles*n + p] << " ";
+		}
+		cout << endl;
+	}
+	for(int p=190; p<196; p++){
+		cout << p << ": ";
+		for(int n=0; n<NUM_NEIGHBORS; n++){
+			cout << knnIndices_h[numParticles*n + p] << " ";
+		}
+		cout << endl;
+	}
+	for(int p=numParticles-16; p<numParticles; p++){
+		cout << p << ": ";
+		for(int n=0; n<NUM_NEIGHBORS; n++){
+			cout << knnIndices_h[numParticles*n + p] << " ";
+		}
+		cout << endl;
+	}
+*/
 	// copy neighbor indices to GPU
-	cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
-
+	res = cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
+	if(res != cudaSuccess){
+		fprintf (stderr, "knn memcpy error\n");
+		fprintf(stderr, "%s\n", cudaGetErrorString(res));
+	}
+	
 	cudaThreadSynchronize();
 	CUT_CHECK_ERROR("updateNeighbors end");
 }
@@ -478,6 +516,7 @@ void cleanup()
 		free(velocities_h);
 		velocities_h = NULL;
 	}
+	cudaPrintfEnd();
 }
 
 //////////////////////////////////////////////////////////////////////

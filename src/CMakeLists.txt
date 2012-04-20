@@ -23,11 +23,11 @@ endif (OPENGL_FOUND)
 #  "/home/benjones/NVIDIA_GPU_COMPUTING_SDK/shared/inc/")
 include_directories(${OPENGL_INCLUDE_DIR})
 
-#SET(CUDA_NVCC_FLAGS "-arch=compute_20" "-code=sm_20" "-DUSE_ATOMIC_FLOAT" "-g" "-G" ) 
-#SET(CUDA_SDK_ROOT_DIR "/home/benjones/NVIDIA_GPU_Computing_SDK")
+SET(CUDA_NVCC_FLAGS "-arch=compute_20" "-code=sm_20" "-DUSE_ATOMIC_FLOAT" "-g" "-G" ) 
+SET(CUDA_SDK_ROOT_DIR "/home/benjones/NVIDIA_GPU_Computing_SDK")
 
-SET(CUDA_SDK_ROOT_DIR "/uusoc/scratch/users/preethik/NVIDIA_GPU_Computing_SDK")
-SET(CUDA_NVCC_FLAGS "-arch=compute_13" "-code=sm_13" "-g" "-G" ) 
+#SET(CUDA_SDK_ROOT_DIR "/uusoc/scratch/users/preethik/NVIDIA_GPU_Computing_SDK")
+#SET(CUDA_NVCC_FLAGS "-arch=compute_13" "-code=sm_13" "-g" "-G" ) 
 
 #LINK_LIBRARIES(
 #	"-L${CUDA_SDK_ROOT_DIR}/C/lib" 

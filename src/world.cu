@@ -1,8 +1,8 @@
-
 #include "world.cuh"
 #include "matLib.h"
 #include "cutil.h"
 #include "device_functions.h"
+#include "cuPrintf.cu"
 
 #define BLOCK_SIZE 64
 
@@ -14,6 +14,39 @@ const float lambda = 1000000.0f;
 const float mu = 1000000.0f;
 
 const float forceIntMultiplier = 10000000.0f;		//integer force value = float * multiplier
+
+__global__ void validateIndices(int numParticles, int* knnIndices){
+	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+	if(idx >= numParticles) return;
+	
+	int j = knnIndices[numParticles*(NUM_NEIGHBORS-1)+idx];
+	cuPrintf("%d \n", j);
+	
+
+//	for(int i=0; i<NUM_NEIGHBORS; i++){
+//		//int j = knnIndices[numParticles*i + idx]-1;
+//		int j = numParticles*i + idx;		
+//		cuPrintf(" %d:%d \n", i, j);
+//		//int nIdx = numParticles*i + idx;
+//		//int val = knnIndices[nIdx]-1;
+//		//if (val < 0)
+//		//	knnIndices[nIdx] = 0;
+//		//if (val >= numParticles)
+//		//	knnIndices[nIdx] = numParticles-1;
+//	}
+
+}
+
+extern "C"
+void launchValidateIndices(int numParticles, int* knnIndices){
+	dim3 threadLayout(BLOCK_SIZE, 1, 1);
+	int blockCnt = numParticles / BLOCK_SIZE;
+	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
+	dim3 blockLayout(blockCnt, 1);
+	validateIndices<<<blockLayout, threadLayout>>>(numParticles, knnIndices);
+	cudaThreadSynchronize();
+	cudaPrintfDisplay(stdout, true);
+}
 
 __global__ void calculateForcesForNextFrame(
 			int numParticles,
@@ -31,7 +64,7 @@ __global__ void calculateForcesForNextFrame(
 
 	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
 
-	if (idx > numParticles) return;	// out of bounds
+	if (idx >= numParticles) return;	// out of bounds
 
 
 	
@@ -44,20 +77,48 @@ __global__ void calculateForcesForNextFrame(
 	
 
 	float wSum = 0;
-	for(int i = 0; i < NUM_NEIGHBORS; ++i){
-	int j = knnIndices[idx + numParticles*i];
-	//for(int j = 0; j < numParticles; ++j){
-	//if (j == idx) continue;
-	  float4 vij = vecSub(embedded[j], embedded[idx]) ;
+	//for(int i = 0; i < NUM_NEIGHBORS; ++i){
+	//int j = knnIndices[numParticles*i + idx]-1;	// knn fxn returns indices as 1-indexed
+	for(int j = 0; j < numParticles; ++j){
+	if (j == idx) continue;
+	  //float4 vij = vecSub(embedded[j], embedded[idx]) ;
+/*
+		if(j<0)
+			if(j==-1)
+				float4 eMark = embedded[j];
+			else
+				float4 eMark = embedded[j];
+		else if(j>=numParticles)
+			if(j==numParticles+1)
+				float4 eMark = embedded[j];
+			else
+				float4 eMark = embedded[j];
+*/
+
+		//float4 b = embedded[idx];		
+		//float4 a = embedded[j];
+		
+		float4 vij = make_float4(
+				embedded[j].x - embedded[idx].x, 
+				embedded[j].y - embedded[idx].y, 
+				embedded[j].z - embedded[idx].z, 0);
 	  
 	  float wij = sphKernel(kernelRadius, vecMag(vij));
+
 	  A = matAdd(A, matScale(outerProduct(vij, vij), wij));
 	  
-	  rhs1 = matAdd(rhs1, matScale(outerProduct(vecSub(positions[j], positions[idx]), vij), wij));
-	  rhs2 = matAdd(rhs1, matScale(outerProduct(vecSub(velocities[j], velocities[idx]), vij), 
-				       wij));
+	  //rhs1 = matAdd(rhs1, matScale(outerProduct(vecSub(positions[j], positions[idx]), vij), wij));
+	  //rhs2 = matAdd(rhs1, matScale(outerProduct(vecSub(velocities[j], velocities[idx]), vij), wij));
 	    
-	  
+	  rhs1 = matAdd(rhs1, matScale(outerProduct(make_float4(
+				positions[j].x - positions[idx].x, 
+				positions[j].y - positions[idx].y, 
+				positions[j].z - positions[idx].z, 0), vij), wij));
+	  rhs2 = matAdd(rhs1, matScale(outerProduct(make_float4(
+				velocities[j].x - velocities[idx].x, 
+				velocities[j].y - velocities[idx].y, 
+				velocities[j].z - velocities[idx].z, 0), vij), wij));
+
 	  wSum += wij;
 	    
 	  
@@ -81,7 +142,11 @@ __global__ void calculateForcesForNextFrame(
 	float4 FS;
 	SVD(F, FU, FS, FV);
 	float4 ones = make_float4(1.0f, 1.0f, 1.0f, 0.0f);
-	float4 strain = vecSub(FS, ones);
+	//float4 strain = vecSub(FS, ones);
+	float4 strain = make_float4(
+				FS.x - ones.x, 
+				FS.y - ones.y, 
+				FS.z - ones.z, 0);
 	float lTrace = lambda*(strain.x + strain.y + strain.z);
 	mat3 stress = matScale(matDiag(strain), 2*mu);
 	stress.m00 += lTrace;
@@ -101,12 +166,16 @@ __global__ void calculateForcesForNextFrame(
 
 	//add forces:
 	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
-	for(int i = 0; i < NUM_NEIGHBORS; ++i){
-	int j = knnIndices[idx + numParticles*i];
-	//for(int j = 0; j < numParticles; ++j){
-	//if (j == idx) continue;
+	//for(int i = 0; i < NUM_NEIGHBORS; ++i){
+	//int j = knnIndices[idx + numParticles*i]-1; // make zero-indexed
+	for(int j = 0; j < numParticles; ++j){
+	if (j == idx) continue;
 	  //recompute vector and weights...
-	  float4 vij = vecSub(embedded[j], embedded[idx]) ;
+	  //float4 vij = vecSub(embedded[j], embedded[idx]) ;
+	  float4 vij = make_float4(
+				embedded[j].x - embedded[idx].x, 
+				embedded[j].y - embedded[idx].y, 
+				embedded[j].z - embedded[idx].z, 0);
 	  float wij = sphKernel(kernelRadius, vecMag(vij));
 	  float4 force = vecScale(matVecMult(FE, vij),wij);
 	    
@@ -222,7 +291,7 @@ extern "C" void launch_kernel(
 	dim3 threadLayout(BLOCK_SIZE, 1, 1);
 	int blockCnt = numParticles / BLOCK_SIZE;
 	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
-	dim3 blockLayout(blockCnt, 1);
+	dim3 blockLayout(blockCnt, 1, 1);
     // execute the kernel
 	//std::cout << "-- kernel launch --"  << std::endl;
 	cudaError_t err = cudaGetLastError();
@@ -244,6 +313,7 @@ extern "C" void launch_kernel(
 		//std::cout << "*** clear forces success!" << std::endl;
 	}
 
+	//validateIndices<<< blockLayout, threadLayout >>>(numParticles, knnIndices);
 
    	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, 
 								     positions, velocities, 
