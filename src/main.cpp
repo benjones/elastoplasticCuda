@@ -7,6 +7,8 @@
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
+#include "cutil.h"
+
 #include <cutil_inline.h>
 #include <cutil_gl_inline.h>
 #include <cutil_gl_error.h>
@@ -37,9 +39,13 @@ void *d_vbo_buffer = NULL;
 // declarations
 // our simulation code (in world.cu)
 extern "C" 
-void launch_kernel( int numParticles, float4* positions, float4* velocities, float4* embedded, float4* forces, int4* externalForces,
+void launch_kernel( int numParticles, 
+		    float4* positions, float4* velocities, float4* embedded, float4* forces, 
+#ifndef USE_ATOMIC_FLOAT
+		    int4* externalForces,
+#endif
 		    float* masses,
-			int* knnIndices,
+		    int* knnIndices,
 		    float dt);
 
 // fast knn implementation 
@@ -223,12 +229,15 @@ int main(int argc, char **argv){
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
         return EXIT_FAILURE;
 	}
+
+	#ifndef USE_ATOMIC_FLOAT
 	res = cudaMalloc((void**)&externalForces_d, sizeof(int4)*numParticles);
 	if (res != cudaSuccess){
 		fprintf (stderr, "!!!! gpu memory allocation error (externalforces)\n");
 		fprintf(stderr, "%s\n", cudaGetErrorString(res));
         return EXIT_FAILURE;
 	}
+	#endif
 
 	res = cudaMalloc((void**)&masses_d, sizeof(float)*numParticles);
 	if (res != cudaSuccess){
@@ -312,7 +321,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 	// check if it is time to recalculate neighbors
 	if(frameCnt==0){
 		//cout << "----update neighbors" << endl;
-		updateNeighbors(dptr);
+		updateNeighbors(embedded_d);
 	}
 	frameCnt++;
 	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
@@ -320,7 +329,11 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 	}
     
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
-		  forces_d, externalForces_d, masses_d, knnIndices_d, dt);
+		  forces_d, 
+#ifndef USE_ATOMIC_FLOAT
+		  externalForces_d, 
+#endif
+		  masses_d, knnIndices_d, dt);
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -341,8 +354,17 @@ void updateNeighbors(float4* positions_d){
 	knn(knnParticles_h, numParticles, knnParticles_h, numParticles, 
 			3, NUM_NEIGHBORS, knnDistances_h, knnIndices_h);
 
+
+	std::cout << "neighbors: " ;
+	for(int i = 0; i < numParticles*NUM_NEIGHBORS; ++i)
+	  std::cout << knnIndices_h[i] << " ";
+	std::cout << std::endl;
+
 	// copy neighbor indices to GPU
 	cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
+
+	cudaThreadSynchronize();
+	CUT_CHECK_ERROR("updateNeighbors end");
 }
 
 /////////////////////////////////////////////////////////////////////////

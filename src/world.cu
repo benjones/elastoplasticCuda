@@ -1,12 +1,12 @@
 
 #include "world.cuh"
 #include "matLib.h"
-
+#include "cutil.h"
 #include "device_functions.h"
 
 #define BLOCK_SIZE 64
 
-const float kernelRadius = 1.5f;
+const float kernelRadius = 2.0f;
 
 const float density = 1000.0f;
 
@@ -21,7 +21,9 @@ __global__ void calculateForcesForNextFrame(
 	   	   	float4* velocities,
 			float4* embedded,
 			float4* forces,
+#ifndef USE_ATOMIC_FLOAT
 			int4* externalForces,
+#endif			
 			float* masses,
 			int* knnIndices,
 	   	   	float dt){
@@ -29,7 +31,7 @@ __global__ void calculateForcesForNextFrame(
 
 	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
 
-	if (idx >= numParticles) return;	// out of bounds
+	if (idx > numParticles) return;	// out of bounds
 
 
 	
@@ -42,19 +44,23 @@ __global__ void calculateForcesForNextFrame(
 	
 
 	float wSum = 0;
-	for(int i = 0; i < numParticles; ++i){
-	  if( i != idx){
-	    float4 vij = vecSub(embedded[i], embedded[idx]) ;
-	    float wij = sphKernel(kernelRadius, vecMag(vij));
-	    A = matAdd(A, matScale(outerProduct(vij, vij), wij));
+	for(int i = 0; i < NUM_NEIGHBORS; ++i){
+	int j = knnIndices[idx + numParticles*i];
+	//for(int j = 0; j < numParticles; ++j){
+	//if (j == idx) continue;
+	  float4 vij = vecSub(embedded[j], embedded[idx]) ;
+	  
+	  float wij = sphKernel(kernelRadius, vecMag(vij));
+	  A = matAdd(A, matScale(outerProduct(vij, vij), wij));
+	  
+	  rhs1 = matAdd(rhs1, matScale(outerProduct(vecSub(positions[j], positions[idx]), vij), wij));
+	  rhs2 = matAdd(rhs1, matScale(outerProduct(vecSub(velocities[j], velocities[idx]), vij), 
+				       wij));
 	    
-	    rhs1 = matAdd(rhs1, matScale(outerProduct(vecSub(positions[i], positions[idx]), vij), wij));
-	    rhs1 = matAdd(rhs1, matScale(outerProduct(vecSub(velocities[i], velocities[idx]), vij), wij));
+	  
+	  wSum += wij;
 	    
-	    
-	    wSum += wij;
-	    
-	  }
+	  
 	}
 	
 	mat3 AU, AV;
@@ -63,7 +69,7 @@ __global__ void calculateForcesForNextFrame(
 
 	
 
-	float volume = sqrtf(AS.x*AS.y*AS.z/(wSum*wSum*wSum));
+	float volume = sqrtf(AS.x*AS.y*AS.z/(1 + wSum*wSum*wSum));
 	float mass = density/volume;
 	masses[idx] = mass;
 
@@ -92,49 +98,63 @@ __global__ void calculateForcesForNextFrame(
 	
 	//add forces:
 	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
-	for(int i = 0; i < numParticles; ++i){
-	  if(i != idx){
-	    //recompute vector and weights...
-	    float4 vij = vecSub(embedded[i], embedded[idx]) ;
-	    float wij = sphKernel(kernelRadius, vecMag(vij));
-	    float4 force = vecScale(matVecMult(FE, vij),wij);
+	for(int i = 0; i < NUM_NEIGHBORS; ++i){
+	int j = knnIndices[idx + numParticles*i];
+	//for(int j = 0; j < numParticles; ++j){
+	//if (j == idx) continue;
+	  //recompute vector and weights...
+	  float4 vij = vecSub(embedded[j], embedded[idx]) ;
+	  float wij = sphKernel(kernelRadius, vecMag(vij));
+	  float4 force = vecScale(matVecMult(FE, vij),wij);
 	    
-	    //atomicAdd(&(forces[i].x), force.x);
-	    //atomicAdd(&(forces[i].y), force.y);
-	    //atomicAdd(&(forces[i].z), force.z);
+#ifdef USE_ATOMIC_FLOAT
+	  atomicAdd(&(forces[j].x), force.x);
+	  atomicAdd(&(forces[j].y), force.y);
+	  atomicAdd(&(forces[j].z), force.z);
 
-		// multiply and convert to int so atomic add can be used... 
-		// later sync and convert back so that external forces can be incorporated
-		atomicAdd(&(externalForces[i].x), (int)(force.x*forceIntMultiplier));
-	    atomicAdd(&(externalForces[i].y), (int)(force.y*forceIntMultiplier));
-	    atomicAdd(&(externalForces[i].z), (int)(force.z*forceIntMultiplier));
+	  atomicAdd(&(forces[idx].x), -force.x);
+	  atomicAdd(&(forces[idx].y), -force.y);
+	  atomicAdd(&(forces[idx].z), -force.z);
+
+
+	  // multiply and convert to int so atomic add can be used... 
+	  // later sync and convert back so that external forces can be incorporated
+#else //USE_ATOMIC_FLOAT
+	  atomicAdd(&(externalForces[i].x), (int)(force.x*forceIntMultiplier));
+	  atomicAdd(&(externalForces[i].y), (int)(force.y*forceIntMultiplier));
+	  atomicAdd(&(externalForces[i].z), (int)(force.z*forceIntMultiplier));
+	  
+	  forces[idx].x -= force.x;
+	  forces[idx].y -= force.y;
+	  forces[idx].z -= force.z;
+	  
 	    
-	    //atomicAdd(&(forces[idx].x), -force.x);
-	    //atomicAdd(&(forces[idx].y), -force.y);
-	    //atomicAdd(&(forces[idx].z), -force.z);
-		forces[idx].x -= force.x;
-		forces[idx].y -= force.y;
-		forces[idx].z -= force.z;
+#endif //USE_ATOMIC_FLOAT
 	
 	    //todo damping forces
     
-	  }
-	  }
+	
+	}
 	
 
 
 }
 
-__global__ void clearForces(int numParticles, float4* forces, int4* externalForces){
+__global__ void clearForces(int numParticles, float4* forces 
+#ifndef USE_ATOMIC_FLOAT
+			    , int4* externalForces
+#endif
+			    ){
   int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
   if(idx < numParticles){
     forces[idx].x = 0;
     forces[idx].y = 0;
     forces[idx].z = 0;
-
-	externalForces[idx].x = 0;
+#ifndef USE_ATOMIC_FLOAT
+    externalForces[idx].x = 0;
     externalForces[idx].y = 0;
     externalForces[idx].z = 0;
+#endif
   }
 }
 
@@ -189,7 +209,9 @@ extern "C" void launch_kernel(
 	   	float4* velocities,
 		float4* embedded,
 		float4* forces,
+#ifndef USE_ATOMIC_FLOAT
 		int4* externalForces,
+#endif
 		float* masses,
 		int* knnIndices,
 	   	float dt)
@@ -205,7 +227,11 @@ extern "C" void launch_kernel(
 	  std::cout << "error before launching kernel fxns: " << cudaGetErrorString(err) << std::endl;
 	  exit(1);
 	} 
-	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces, externalForces);
+	clearForces<<<blockLayout, threadLayout>>>(numParticles, forces 
+#ifndef USE_ATOMIC_FLOAT
+						   , externalForces
+#endif
+						   );
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(cudaSuccess != err){
@@ -216,8 +242,18 @@ extern "C" void launch_kernel(
 	}
 
 
-   	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, positions, velocities, embedded, forces, externalForces, masses, knnIndices, dt);
+   	calculateForcesForNextFrame<<< blockLayout, threadLayout >>>(numParticles, 
+								     positions, velocities, 
+								     embedded, forces, 
+#ifndef USE_ATOMIC_FLOAT
+								     externalForces, 
+#endif
+								     masses, knnIndices, dt);
+	CUT_CHECK_ERROR("before sync");
+
 	cudaThreadSynchronize();
+
+	CUT_CHECK_ERROR("after sync");
 
 	err = cudaGetLastError();
 	if(cudaSuccess != err){
@@ -226,7 +262,7 @@ extern "C" void launch_kernel(
 	} else {
 		//std::cout << "*** calcForce success!" << std::endl;
 	}
-
+#ifndef USE_ATOMIC_FLOAT
    	incorporateExternalForces<<< blockLayout, threadLayout >>>(numParticles, forces, externalForces);
 	cudaThreadSynchronize();
 
@@ -237,6 +273,7 @@ extern "C" void launch_kernel(
 	} else {
 		//std::cout << "*** incorpForces success!" << std::endl;
 	}
+#endif
 
 	integrateForces<<<blockLayout, threadLayout >>>(numParticles, forces, positions, velocities, masses, knnIndices, dt);
 	cudaThreadSynchronize();
