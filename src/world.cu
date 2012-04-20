@@ -8,12 +8,12 @@
 
 const float kernelRadius = 2.0f;
 
-const float density = 1000.0f;
+const float density = 100.0f;
 
 const float lambda = 1000000.0f;
 const float mu = 1000000.0f;
 
-const float forceIntMultiplier = 100000.0f;		//integer force value = float * multiplier
+const float forceIntMultiplier = 10000000.0f;		//integer force value = float * multiplier
 
 __global__ void calculateForcesForNextFrame(
 			int numParticles,
@@ -93,9 +93,12 @@ __global__ void calculateForcesForNextFrame(
 	stress = matMult(matMult(FU, stress), matTranspose(FV));
 	
 	//gravity
-	//atomicAdd(&(forces[idx].y), -9.81f*mass);
+#ifdef USE_ATOMIC_FLOAT	
+	atomicAdd(&(forces[idx].y), -9.81f*mass);
+#else
 	forces[idx].y -= 9.81f*mass;
-	
+#endif
+
 	//add forces:
 	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
 	for(int i = 0; i < NUM_NEIGHBORS; ++i){
@@ -307,6 +310,7 @@ extern "C" void prepPointsForKNN(int numParticles, float4* positions_d, float* k
 	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
 	dim3 blockLayout(blockCnt, 1);
 	transposePositions<<<blockLayout, threadLayout>>>(numParticles, positions_d, knnParticles_d);
+	cudaThreadSynchronize();
 }
 
 

@@ -253,6 +253,25 @@ int main(int argc, char **argv){
 	// run the cuda part
 	runCuda(&cuda_vbo_resource);
 
+/*
+	// check forces
+	int4* externalForces_h = NULL;
+	externalForces_h = (int4*)malloc(sizeof(int4)*numParticles);
+	cudaMemcpy(externalForces_h, externalForces_d, sizeof(int4)*numParticles, 
+	     cudaMemcpyDeviceToHost);
+
+	cout << "Initial Forces:" << endl;
+	for (int i=0; i<32; i+=1){
+		if (i%8==0) cout << endl;
+		cout << externalForces_h[i].x << ", " << externalForces_h[i].y << ", " << externalForces_h[i].z;
+		cout << " @ " << positions_h[i].x << ", " << positions_h[i].y << ", " << positions_h[i].z << endl;
+		
+	}
+
+	free(externalForces_h);
+	externalForces_h = NULL;
+*/
+
 	cout << "---enter main loop..." << endl;
 	// start rendering mainloop
 	atexit(cleanup);
@@ -349,16 +368,18 @@ void updateNeighbors(float4* positions_d){
 
 	// copy prepared positions back to host
 	cudaMemcpy(knnParticles_h, knnParticles_d, sizeof(float)*numParticles*3, cudaMemcpyDeviceToHost);
-	
+	cudaThreadSynchronize();
+
 	// call knn function
 	knn(knnParticles_h, numParticles, knnParticles_h, numParticles, 
 			3, NUM_NEIGHBORS, knnDistances_h, knnIndices_h);
 
+	cudaThreadSynchronize();
 
-	std::cout << "neighbors: " ;
-	for(int i = 0; i < numParticles*NUM_NEIGHBORS; ++i)
-	  std::cout << knnIndices_h[i] << " ";
-	std::cout << std::endl;
+	//std::cout << "neighbors: " ;
+	//for(int i = 0; i < numParticles*NUM_NEIGHBORS; ++i)
+	//  std::cout << knnIndices_h[i] << " ";
+	//std::cout << std::endl;
 
 	// copy neighbor indices to GPU
 	cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
@@ -450,11 +471,11 @@ void cleanup()
     deleteVBO(&vbo, cuda_vbo_resource);
 	cudaFree(velocities_d);
 	if(positions_h){
-		delete positions_h;
+		free(positions_h);
 		positions_h = NULL;
 	}
 	if(velocities_h){
-		delete velocities_h;
+		free(velocities_h);
 		velocities_h = NULL;
 	}
 }
