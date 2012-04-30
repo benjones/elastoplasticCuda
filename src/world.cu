@@ -19,11 +19,11 @@ __global__ void validateIndices(int numParticles, int* knnIndices){
 	int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
 	if(idx >= numParticles) return;
 	
-	int j = knnIndices[numParticles*(NUM_NEIGHBORS-1)+idx];
-	cuPrintf("%d \n", j);
+	int j = knnIndices[numParticles*(0)+idx];
+	cuPrintf("KNNi %d: %d \n", idx, j);
 	
 
-//	for(int i=0; i<NUM_NEIGHBORS; i++){
+//	for(int i=0; i<NUM_NEIGHBORS && i<numParticles; i++){
 //		//int j = knnIndices[numParticles*i + idx]-1;
 //		int j = numParticles*i + idx;		
 //		cuPrintf(" %d:%d \n", i, j);
@@ -77,10 +77,11 @@ __global__ void calculateForcesForNextFrame(
 	
 
 	float wSum = 0;
-	//for(int i = 0; i < NUM_NEIGHBORS; ++i){
-	//int j = knnIndices[numParticles*i + idx]-1;	// knn fxn returns indices as 1-indexed
-	for(int j = 0; j < numParticles; ++j){
-	if (j == idx) continue;
+
+	for(int i = 0; i < NUM_NEIGHBORS && i<numParticles; ++i){
+		int j = knnIndices[numParticles*i + idx]-1;	// knn fxn returns indices as 1-indexed
+	//for(int j = 0; j < numParticles; ++j){
+		if (j == idx) continue;
 	  //float4 vij = vecSub(embedded[j], embedded[idx]) ;
 /*
 		if(j<0)
@@ -166,9 +167,9 @@ __global__ void calculateForcesForNextFrame(
 
 	//add forces:
 	mat3 FE = matScale(matMult(stress, Ainv),-2.0*volume);
-	//for(int i = 0; i < NUM_NEIGHBORS; ++i){
-	//int j = knnIndices[idx + numParticles*i]-1; // make zero-indexed
-	for(int j = 0; j < numParticles; ++j){
+	for(int i = 0; i < NUM_NEIGHBORS && i<numParticles; ++i){
+	int j = knnIndices[idx + numParticles*i]-1; // make zero-indexed
+	//for(int j = 0; j < numParticles; ++j){
 	if (j == idx) continue;
 	  //recompute vector and weights...
 	  //float4 vij = vecSub(embedded[j], embedded[idx]) ;
@@ -285,13 +286,21 @@ extern "C" void launch_kernel(
 		int4* externalForces,
 #endif
 		float* masses,
-		int* knnIndices,
+		int* const knnIndices,
 	   	float dt)
 {
+
+	
+	//std::cout << "knnIndices at launch start: " <<  knnIndices << std::endl;
+
+
 	dim3 threadLayout(BLOCK_SIZE, 1, 1);
 	int blockCnt = numParticles / BLOCK_SIZE;
 	if(blockCnt*BLOCK_SIZE < numParticles) blockCnt++;
 	dim3 blockLayout(blockCnt, 1, 1);
+
+	//validateIndices<<< blockLayout, threadLayout >>>(numParticles, knnIndices);
+
     // execute the kernel
 	//std::cout << "-- kernel launch --"  << std::endl;
 	cudaError_t err = cudaGetLastError();

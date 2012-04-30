@@ -46,7 +46,7 @@ void launch_kernel( int numParticles,
 		    int4* externalForces,
 #endif
 		    float* masses,
-		    int* knnIndices,
+		    int* const knnIndices,
 		    float dt);
 
 // fast knn implementation 
@@ -113,7 +113,11 @@ float* knnDistances_h = NULL;	// distances returned by knn function; size: numPa
 int* knnIndices_h = NULL;		// indices returned from knn function; size: numParticlesxNUM_NEIGHBORS
 int* knnIndices_d = NULL;		// indices copied to gpu
 
-float dt = .005;
+float dt = .001;
+
+// used for timing
+double aveTimePerFrame = 0.0;
+long totalFrameCnt = 0;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -356,21 +360,27 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
 	// check if it is time to recalculate neighbors
-//	if(frameCnt==0){
-//		//cout << "----update neighbors" << endl;
-//		updateNeighbors(embedded_d);
-//	}
-//	frameCnt++;
-//	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
-//		frameCnt = 0;
-//	}
+	if(frameCnt==0){
+		//cout << "----update neighbors" << endl;
+		updateNeighbors(embedded_d);
+	}
+	frameCnt++;
+	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
+		frameCnt = 0;
+	}
     
+	//cout << "knnIndices before launch: " << knnIndices_d << endl;
+
+
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
 		  forces_d, 
 #ifndef USE_ATOMIC_FLOAT
 		  externalForces_d, 
 #endif
 		  masses_d, knnIndices_d, dt);
+
+
+	//cout << "knnIndices after launch complete: " << knnIndices_d << endl;
 
     // unmap buffer object
     // DEPRECATED: cutilSafeCall(cudaGLUnmapBufferObject(vbo));
@@ -382,9 +392,25 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 	// End time
   	cudaEventRecord(stop_event, 0);
   	cudaEventSynchronize(stop_event);
-  	// calculate time elapsed for sobel calculation
+  	// calculate time elapsed
   	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
-  	//fprintf(stderr, "%f\n", elapsed_time);
+	//fprintf(stderr, "%f\n", elapsed_time);
+
+	// update running total
+	totalFrameCnt += 1;
+	if(totalFrameCnt >= LONG_MAX){
+		totalFrameCnt = 1;
+		aveTimePerFrame = elapsed_time;
+	}else{
+		double dblFrames = static_cast<double>(totalFrameCnt);
+		double dblFramesInv = 1.0 / dblFrames;
+		double dblFramesMinusOne = static_cast<double>(totalFrameCnt-1);
+		aveTimePerFrame =  dblFramesMinusOne * dblFramesInv * aveTimePerFrame + 
+							dblFramesInv * elapsed_time;
+	}
+	
+
+  	
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -416,6 +442,7 @@ void updateNeighbors(float4* positions_d){
 		}
 		cout << endl;
 	}
+
 	for(int p=190; p<196; p++){
 		cout << p << ": ";
 		for(int n=0; n<NUM_NEIGHBORS; n++){
@@ -431,6 +458,7 @@ void updateNeighbors(float4* positions_d){
 		cout << endl;
 	}
 */
+
 	// copy neighbor indices to GPU
 	res = cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
 	if(res != cudaSuccess){
@@ -440,6 +468,9 @@ void updateNeighbors(float4* positions_d){
 	
 	cudaThreadSynchronize();
 	CUT_CHECK_ERROR("updateNeighbors end");
+
+	//cout << "knnIndices at end of update neighbors: " << knnIndices_d << endl;
+
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -533,6 +564,11 @@ void cleanup()
 		velocities_h = NULL;
 	}
 	cudaPrintfEnd();
+
+	// print final timing
+	cout << "Average time per frame: " << aveTimePerFrame << " ms" << endl;
+	cout << "Total Frames: " << totalFrameCnt << endl;  
+
 }
 
 //////////////////////////////////////////////////////////////////////
