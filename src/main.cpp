@@ -92,7 +92,7 @@ void motion(int x, int y);
 // mouse controls
 int mouse_old_x, mouse_old_y;
 int mouse_buttons = 0;
-float rotate_x = 0.0, rotate_y = 0.0;
+float rotate_x = 15.0, rotate_y = 30.0;
 float translate_z = -3.0;
 
 // give these global-file scope for now...
@@ -113,7 +113,7 @@ float* knnDistances_h = NULL;	// distances returned by knn function; size: numPa
 int* knnIndices_h = NULL;		// indices returned from knn function; size: numParticlesxNUM_NEIGHBORS
 int* knnIndices_d = NULL;		// indices copied to gpu
 
-float dt = .01;
+float dt = .005;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -150,7 +150,7 @@ int main(int argc, char **argv){
 	for(int ck=0; ck<CUBE_SIZE; ck++){
 		int i = ci*CUBE_SIZE_SQUARED + cj*CUBE_SIZE + ck;
 		positions_h[i].x = (((float)(ci-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
-		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) + 2.0f ;
+		positions_h[i].y = (((float)(cj-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) + 1.0f ;
 		positions_h[i].z = (((float)(ck-HALF_CUBE_SIZE))/HALF_CUBE_SIZE) ;
 		positions_h[i].w = 1.0f;
 					       
@@ -334,6 +334,15 @@ void initGL(int *argc, char **argv){
 // handles switching between cuda and openGL and calling the kernel fxn
 void runCuda(struct cudaGraphicsResource **vbo_resource)
 {
+	// Initialize timing
+  	cudaEvent_t start_event, stop_event;
+  	float elapsed_time = 0;
+  	CUDA_SAFE_CALL( cudaEventCreate(&start_event));
+  	CUDA_SAFE_CALL( cudaEventCreate(&stop_event));
+
+	// Start time
+  	cudaEventRecord(start_event, 0); 
+
     // map OpenGL buffer object for writing from CUDA
     float4 *dptr;
 
@@ -347,14 +356,14 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
 
 	// check if it is time to recalculate neighbors
-	if(frameCnt==0){
-		//cout << "----update neighbors" << endl;
-		updateNeighbors(embedded_d);
-	}
-	frameCnt++;
-	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
-		frameCnt = 0;
-	}
+//	if(frameCnt==0){
+//		//cout << "----update neighbors" << endl;
+//		updateNeighbors(embedded_d);
+//	}
+//	frameCnt++;
+//	if(frameCnt >= FRAMES_PER_NEIGHBOR_RECALC){
+//		frameCnt = 0;
+//	}
     
     launch_kernel(numParticles, dptr /*positions_d*/, velocities_d, embedded_d, 
 		  forces_d, 
@@ -369,6 +378,13 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 
 	// any messages from kernel?
 	cudaPrintfDisplay(stdout, true);
+
+	// End time
+  	cudaEventRecord(stop_event, 0);
+  	cudaEventSynchronize(stop_event);
+  	// calculate time elapsed for sobel calculation
+  	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
+  	//fprintf(stderr, "%f\n", elapsed_time);
 }
 
 /////////////////////////////////////////////////////////////////////////
