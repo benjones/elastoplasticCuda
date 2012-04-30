@@ -118,6 +118,7 @@ float dt = .001;
 // used for timing
 double aveTimePerFrame = 0.0;
 long totalFrameCnt = 0;
+int remainingFramesToIgnore = 100;	// don't start counting until this is zero, to give time to warm up
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -397,18 +398,23 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 	//fprintf(stderr, "%f\n", elapsed_time);
 
 	// update running total
-	totalFrameCnt += 1;
-	if(totalFrameCnt >= LONG_MAX){
-		totalFrameCnt = 1;
+	if(remainingFramesToIgnore <= 0){
+		totalFrameCnt += 1;
+		if(totalFrameCnt >= LONG_MAX){
+			totalFrameCnt = 1;
+			aveTimePerFrame = elapsed_time;
+		}else{
+			double dblFrames = static_cast<double>(totalFrameCnt);
+			double dblFramesInv = 1.0 / dblFrames;
+			double dblFramesMinusOne = static_cast<double>(totalFrameCnt-1);
+			aveTimePerFrame =  dblFramesMinusOne * dblFramesInv * aveTimePerFrame + 
+								dblFramesInv * elapsed_time;
+		}
+	} else {
+		remainingFramesToIgnore--;
 		aveTimePerFrame = elapsed_time;
-	}else{
-		double dblFrames = static_cast<double>(totalFrameCnt);
-		double dblFramesInv = 1.0 / dblFrames;
-		double dblFramesMinusOne = static_cast<double>(totalFrameCnt-1);
-		aveTimePerFrame =  dblFramesMinusOne * dblFramesInv * aveTimePerFrame + 
-							dblFramesInv * elapsed_time;
-	}
-	
+		totalFrameCnt = 1;
+	}	
 
   	
 }
@@ -566,8 +572,12 @@ void cleanup()
 	cudaPrintfEnd();
 
 	// print final timing
-	cout << "Average time per frame: " << aveTimePerFrame << " ms" << endl;
-	cout << "Total Frames: " << totalFrameCnt << endl;  
+	cout << "*** Simulation Terminated ***" << endl;
+	cout << "Final Stats:" << endl;
+	cout << "  Number of particles: " << CUBE_SIZE*CUBE_SIZE*CUBE_SIZE << endl;
+	cout << "  Number of neighbors: " << NUM_NEIGHBORS << endl;
+	cout << "  Average time per frame: " << aveTimePerFrame << " ms" << endl;
+	cout << "  Total Frames: " << totalFrameCnt << endl;  
 
 }
 
