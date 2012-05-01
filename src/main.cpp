@@ -123,6 +123,8 @@ float dt = .001;
 double aveTimePerFrame = 0.0;
 long totalFrameCnt = 0;
 int remainingFramesToIgnore = 100;	// don't start counting until this is zero, to give time to warm up
+double bestTime = -1.0;
+double worstTime = -1.0;
 
 /////////////////////////////////////////////////////////////////////////
 //*********************************************************************//
@@ -401,6 +403,13 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
   	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
 	//fprintf(stderr, "%f\n", elapsed_time);
 
+	if(bestTime < 0 || elapsed_time < bestTime){
+		bestTime = elapsed_time;
+	}
+	if(elapsed_time > worstTime){
+		worstTime = elapsed_time;
+	}
+
 	// update running total
 	if(remainingFramesToIgnore <= 0){
 		totalFrameCnt += 1;
@@ -428,18 +437,70 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
 void updateNeighbors(float4* positions_d){
 	cudaError_t res;
 
+#ifdef SHOW_KNN_TIME
+	////////////////
+	// ---Initialize timing
+  	cudaEvent_t start_event, stop_event;
+  	float elapsed_time = 0;
+  	CUDA_SAFE_CALL( cudaEventCreate(&start_event));
+  	CUDA_SAFE_CALL( cudaEventCreate(&stop_event));
+
+	////////////////
+	// ---Start time
+  	cudaEventRecord(start_event, 0); 
+#endif
+
 	// transpose and copy point positions into KNN format on host
 	prepPointsForKNN(numParticles, positions_d, knnParticles_d);
+
+#ifdef SHOW_KNN_TIME
+	// ---End time
+  	cudaEventRecord(stop_event, 0);
+  	cudaEventSynchronize(stop_event);
+  	// ---calculate time elapsed
+  	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
+
+	cout << "Time to prep position matrix: " << elapsed_time << endl;
+
+	///////////////////////
+	// ---Start time
+  	cudaEventRecord(start_event, 0); 
+#endif
 
 	// copy prepared positions back to host
 	cudaMemcpy(knnParticles_h, knnParticles_d, sizeof(float)*numParticles*3, cudaMemcpyDeviceToHost);
 	cudaThreadSynchronize();
+
+#ifdef SHOW_KNN_TIME
+	// ---End time
+  	cudaEventRecord(stop_event, 0);
+  	cudaEventSynchronize(stop_event);
+  	// ---calculate time elapsed
+  	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
+
+	cout << "Time to copy positions to host: " << elapsed_time << endl;
+
+	///////////////////////
+	// ---Start time
+  	cudaEventRecord(start_event, 0);
+#endif
 
 	// call knn function
 	knn(knnParticles_h, numParticles, knnParticles_h, numParticles, 
 			3, NUM_NEIGHBORS, knnDistances_h, knnIndices_h);
 
 	cudaThreadSynchronize();
+
+#ifdef SHOW_KNN_TIME
+	// ---End time
+  	cudaEventRecord(stop_event, 0);
+  	cudaEventSynchronize(stop_event);
+  	// ---calculate time elapsed
+  	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
+
+	cout << "Time to execute KNN: " << elapsed_time << endl;
+#endif
+
 /*
 	std::cout << "neighbors: \n" ;
 	//for(int i = 0; i < numParticles*NUM_NEIGHBORS; ++i)
@@ -469,6 +530,12 @@ void updateNeighbors(float4* positions_d){
 	}
 */
 
+#ifdef SHOW_KNN_TIME
+	///////////////////////
+	// ---Start time
+  	cudaEventRecord(start_event, 0);
+#endif
+
 	// copy neighbor indices to GPU
 	res = cudaMemcpy(knnIndices_d, knnIndices_h, sizeof(int)*numParticles*NUM_NEIGHBORS, cudaMemcpyHostToDevice);
 	if(res != cudaSuccess){
@@ -477,6 +544,17 @@ void updateNeighbors(float4* positions_d){
 	}
 	
 	cudaThreadSynchronize();
+
+#ifdef SHOW_KNN_TIME
+	// ---End time
+  	cudaEventRecord(stop_event, 0);
+  	cudaEventSynchronize(stop_event);
+  	// ---calculate time elapsed
+  	CUDA_SAFE_CALL( cudaEventElapsedTime(&elapsed_time, start_event, stop_event));
+
+	cout << "Time to copy indices to device: " << elapsed_time << endl;
+#endif
+
 	CUT_CHECK_ERROR("updateNeighbors end");
 
 	//cout << "knnIndices at end of update neighbors: " << knnIndices_d << endl;
@@ -581,6 +659,8 @@ void cleanup()
 	cout << "  Number of particles: " << CUBE_SIZE*CUBE_SIZE*CUBE_SIZE << endl;
 	cout << "  Number of neighbors: " << NUM_NEIGHBORS << endl;
 	cout << "  Average time per frame: " << aveTimePerFrame << " ms" << endl;
+	cout << "  Best time per frame: " << bestTime << " ms" << endl;
+	cout << "  Worst time per frame: " << worstTime << " ms" << endl;
 	cout << "  Total Frames: " << totalFrameCnt << endl;  
 
 }

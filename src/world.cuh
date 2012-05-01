@@ -2,7 +2,7 @@
 #define _world_cuh_ 
 
 #define GROUND_HEIGHT -1.0f
-#define NUM_NEIGHBORS 128
+#define NUM_NEIGHBORS 32
 
 // TODO - we may want to turn this into an aligned struct for coalesced memory access...
 // USE "float4" cuda struct instead of vec3 !!!!!!!!!!!!!!!!
