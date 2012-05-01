@@ -1,0 +1,163 @@
+#BLOCK_SIZE 64
+
+============ CUBE_SIZE = 8
+
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 32
+  Average time per frame: 22.3896 ms
+  Best time per frame: 4.98128 ms
+  Worst time per frame: 167.023 ms
+  Total Frames: 461
+
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 64
+  Average time per frame: 25.3687 ms
+  Best time per frame: 4.63197 ms
+  Worst time per frame: 200.464 ms
+  Total Frames: 1232
+
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 128
+  Average time per frame: 26.0183 ms
+  Best time per frame: 8.9089 ms
+  Worst time per frame: 229.443 ms
+  Total Frames: 1489
+
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 256
+  Average time per frame: 44.1983 ms
+  Best time per frame: 17.529 ms
+  Worst time per frame: 295.994 ms
+  Total Frames: 1262
+
+============ CUBE_SIZE = 16
+
+Final Stats:
+  Number of particles: 4096
+  Number of neighbors: 32
+  Average time per frame: 25.2873 ms
+  Best time per frame: 5.67763 ms
+  Worst time per frame: 208.999 ms
+  Total Frames: 412
+
+Final Stats:
+  Number of particles: 4096
+  Number of neighbors: 64
+  Average time per frame: 45.9124 ms
+  Best time per frame: 5.94403 ms
+  Worst time per frame: 424.25 ms
+  Total Frames: 382
+
+Final Stats:
+  Number of particles: 4096
+  Number of neighbors: 128
+  Average time per frame: 95.629 ms
+  Best time per frame: 11.6406 ms
+  Worst time per frame: 810.975 ms
+  Total Frames: 402
+
+Final Stats:
+  Number of particles: 4096
+  Number of neighbors: 256
+  Average time per frame: 194.495 ms
+  Best time per frame: 23.1876 ms
+  Worst time per frame: 1695.8 ms
+  Total Frames: 422
+
+============== CUBE_SIZE = 32
+Final Stats:
+  Number of particles: 32768
+  Number of neighbors: 32
+  Average time per frame: 245.746 ms
+  Best time per frame: 20.2121 ms
+  Worst time per frame: 2276.6 ms
+  Total Frames: 352
+
+Final Stats:
+  Number of particles: 32768
+  Number of neighbors: 64
+  Average time per frame: 463.784 ms
+  Best time per frame: 31.9846 ms
+  Worst time per frame: 4332.77 ms
+  Total Frames: 352
+
+Final Stats:
+  Number of particles: 32768
+  Number of neighbors: 128
+  Average time per frame: 1001.57 ms
+  Best time per frame: 62.2702 ms
+  Worst time per frame: 9424.7 ms
+  Total Frames: 452
+
+Final Stats:
+  Number of particles: 32768
+  Number of neighbors: 256
+  Average time per frame: 2249.32 ms
+  Best time per frame: 130.21 ms
+  Worst time per frame: 21878.3 ms
+  Total Frames: 81
+
+====================== test for numParticles cubesize=8:32:4, neighbors const at 32 ==============
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 32
+  Average time per frame: 14.0933 ms
+  Best time per frame: 5.03632 ms
+  Worst time per frame: 104.703 ms
+  Total Frames: 342
+
+Final Stats:
+  Number of particles: 1728
+  Number of neighbors: 32
+  Average time per frame: 21.1123 ms
+  Best time per frame: 5.37654 ms
+  Worst time per frame: 142.353 ms
+  Total Frames: 396
+
+Final Stats:
+  Number of particles: 4096
+  Number of neighbors: 32
+  Average time per frame: 25.5726 ms
+  Best time per frame: 5.69888 ms
+  Worst time per frame: 268.382 ms
+  Total Frames: 372
+
+Final Stats:
+  Number of particles: 8000
+  Number of neighbors: 32
+  Average time per frame: 44.298 ms
+  Best time per frame: 8.8551 ms
+  Worst time per frame: 387.316 ms
+  Total Frames: 364
+
+Final Stats:
+  Number of particles: 13824
+  Number of neighbors: 32
+  Average time per frame: 72.3364 ms
+  Best time per frame: 12.5729 ms
+  Worst time per frame: 579.118 ms
+  Total Frames: 362
+
+Final Stats:
+  Number of particles: 21952
+  Number of neighbors: 32
+  Average time per frame: 26.9582 ms
+  Best time per frame: 26.2811 ms
+  Worst time per frame: 1179.03 ms
+  Total Frames: 1
+
+Final Stats:
+  Number of particles: 32768
+  Number of neighbors: 32
+  Average time per frame: 242.423 ms
+  Best time per frame: 19.3378 ms
+  Worst time per frame: 2292.84 ms
+  Total Frames: 352
+
+
+
+
