@@ -291,6 +291,57 @@ TODO
 \section{Results}
 
 
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width = 5in]{Figures/charts_001.png}
+\caption{Scaling behavior of our implementation.  It significantly outperforms the sequential code for large examples.}
+\label{fig:scaling1}
+\end{centering}
+\end{figure}
+
+\begin{table}[htdp]
+\caption{Runtimes per timestep (ms)}
+\begin{center}
+\begin{tabular}{c|ccc}
+Number of neighbors& \multicolumn{3}{c}{Number of particles} \\
+&512&   4096&   32768 \\ \hline
+
+32& 22&	25&	245 \\
+64& 25&	45&	463 \\
+128& 26	&95	&1001 \\
+256& 44	&194&	2249 \\
+32(sequential)& 23	&26	&4968  \\
+\end{tabular}
+\end{center}
+\label{default}
+\end{table}%
+
+
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width = 5in]{Figures/charts_002.png}
+\caption{KNN query times are the bottleneck in our implementation (average vs slowest frames).}
+\label{fig:scaling2}
+\end{centering}
+\end{figure}
+
+
+\begin{table}[htdp]
+\caption{Runtimes per timestep, 32 neighbors (ms)}
+\begin{center}
+\begin{tabular}{ccccccc}
+& \multicolumn{6}{c}{Number of particles} \\
+& 512 & 1728 & 4096 & 8000 & 13824 & 32768 \\ \hline
+Average &14	&21	&26	&44	&72	&242 \\
+Fastest & 5&	5&	6	&9	&12	&19 \\
+Slowest & 105&	142	&268	&387	&579&	2292\\
+\end{tabular}
+\end{center}
+\label{default}
+\end{table}%
+
 \section{Conclusions}
 
 
