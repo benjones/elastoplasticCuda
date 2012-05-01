@@ -286,7 +286,28 @@ The downside of this organization is that as the kernel execution time increases
 \end{figure}
 
 \section{Calculating Nearest Neighbors}
-TODO
+
+The calculation of nearest neighbors among particles is easily the most expensive operation in this simulation.  
+Luckily, neighborhoods tend to change little from one frame to the next, so recalculating neighbors every frame would be overkill.
+Instead, nearest neighbors are calculated for every 10th frame, and those results are reused until the next time they are updated.
+Even so, the KNN calculations tend to have the largest impact on overall execution time.
+As an illustration, for 512 particles and 32 neighbors, a typical frame with no KNN calculations took around 5ms to update while those frames updating the neighborhoods tended to take over 100ms.
+For a larger simulation, with 32768 particles and 32 neighbors, KNN calculations took over 2 full seconds while frames between neighborhood updates required less than 25ms.
+
+The KNN calculations are an obvious target for optimization.
+For this project, we deferred to the work of \cite{Garcia_2008_CVGPU} who provided a CUDA implementation for calculating K nearest neighbors.
+They basically use CUDA to parallelize the brute force approach for calculating KNN.  
+Their claim is that the brute force method is more suited to parallel execution than alternative methods.
+They make use of texture memory for non-coalesced memory access during the calculations, and they use an insertion sort to order distances since it tends to be more efficient when only a relatively small number of the top entries are desired.
+Their implementation of KNN was definitely faster than the brute force method of comparing all points, which we used while getting the KNN code to work, though this was still the most time consuming piece of our simulation code.
+
+Because we used their code with minimal modification, there were a few missed opportunities for context-specific optimization.  
+There was also overhead for copying data between the host and device, since the KNN function expected input at the host level and that was also where it saved the final results.
+Additionally, the KNN function expected a different format for the data than what we needed for OpenGL to understand it, so an extra function was written to convert the data between formats.
+These factors reduced the efficiency of the KNN calculations somewhat, but they were negligible compared to the total time of executing the KNN function itself, which took about 1000 times longer than copying or converting the values.
+
+Given more time to work on it, the most likely opportunity here for a significant performance improvement would be to re-implement the KNN function so that it makes use of the known positions from previous neighborhood calculations since, as has been mentioned before, the neighborhoods are unlikely to change much over a short time period.
+That could be an entire project in itself, however.
 
 \section{Results}
 
