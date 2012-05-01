@@ -311,6 +311,17 @@ That could be an entire project in itself, however.
 
 \section{Results}
 
+We tested our simulator by dropping an evenly sampled cube onto flat ground.  Selected frames from one simulation are shown in Figure \ref{fig:combined}.  
+\begin{figure}
+\begin{centering}
+\includegraphics[width = 5in]{Figures/combined.png}
+\caption{Example simulation of box being dropped on flat ground.}
+\label{fig:combined}
+\end{centering}
+\end{figure}
+
+
+We compared our results to a sequential implementation in order to determine the speedup of our parallel algorithm.  Sequential computations were performed on a single core of a 2.4GHz Intel Core I-5 processor.  Figure \ref{fig:scaling1} and Table \ref{tab:scaling1} show how our method scales with the number of particles, and the number of neighbors per particle.  Especially with a large number of particles, the CUDA implementation is significantly faster than the sequential implementation.
 
 
 \begin{figure}
@@ -335,9 +346,11 @@ Number of neighbors& \multicolumn{3}{c}{Number of particles} \\
 32(sequential)& 23	&26	&4968  \\
 \end{tabular}
 \end{center}
-\label{default}
+\label{tab:scaling1}
 \end{table}%
 
+
+We also analyzed how the KNN queries contributed to our runtime.  Figure \ref{fig:scaling2} and Table \ref{tab:scaling2} show that the KNN queries are a significant bottleneck in the implementation, as shown by the huge difference between average and worst case timings.  
 
 
 \begin{figure}
@@ -360,7 +373,7 @@ Fastest & 5&	5&	6	&9	&12	&19 \\
 Slowest & 105&	142	&268	&387	&579&	2292\\
 \end{tabular}
 \end{center}
-\label{default}
+\label{tab:scaling2}
 \end{table}%
 
 \section{Conclusions}
