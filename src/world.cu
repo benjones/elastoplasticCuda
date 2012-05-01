@@ -73,7 +73,7 @@ __global__ void calculateForcesForNextFrame(
 	mat3 A = matZero();
 
 	mat3 rhs1 = matZero();
-	mat3 rhs2 = matZero();
+	//mat3 rhs2 = matZero();
 	
 
 	float wSum = 0;
@@ -115,10 +115,10 @@ __global__ void calculateForcesForNextFrame(
 				positions[j].x - positions[idx].x, 
 				positions[j].y - positions[idx].y, 
 				positions[j].z - positions[idx].z, 0), vij), wij));
-	  rhs2 = matAdd(rhs1, matScale(outerProduct(make_float4(
+	  /*rhs2 = matAdd(rhs1, matScale(outerProduct(make_float4(
 				velocities[j].x - velocities[idx].x, 
 				velocities[j].y - velocities[idx].y, 
-				velocities[j].z - velocities[idx].z, 0), vij), wij));
+				velocities[j].z - velocities[idx].z, 0), vij), wij));*/
 
 	  wSum += wij;
 	    
@@ -137,7 +137,7 @@ __global__ void calculateForcesForNextFrame(
 
 	mat3 Ainv = pseudoInverse(AU, AS, AV);;
 	mat3 F = matMult(rhs1,Ainv);
-	mat3 FDot = matMult(rhs2,Ainv);
+	//mat3 FDot = matMult(rhs2,Ainv);
 
 	mat3 FU, FV;
 	float4 FS;
