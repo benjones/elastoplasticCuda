@@ -243,7 +243,12 @@ Because particles behave almost completely independently, we chose to map each p
 \end{centering}
 \end{figure}
 
-There are several points in the algorithm that require global synchronization.  For example, a particle needs to wait for all neighboring particles to apply forces to it before integrating in time.  To handle this, we used several separate CUDA kernels.  This causes more scheduling overhead, but since we are not copying data, this will likely not have a significant performance impact for large simulations.  Figure \ref{fig:kernelDivision} illustrates this division.  Additionally, atomic addition is required to ensure that a particle accounts for forces from all neighboring particles.
+There are several points in the algorithm that require global synchronization.  
+For example, a particle needs to wait for all neighboring particles to apply forces to it before integrating in time.  
+To handle this, we used several separate CUDA kernels.  
+This causes more scheduling overhead, but since we are not copying data, this will likely not have a significant performance impact for large simulations.  
+Figure \ref{fig:kernelDivision} illustrates this division.  
+Additionally, atomic addition is required to avoid race conditions when calculating the forces between all neighboring particles.
 
 \begin{figure}
 \begin{centering}
@@ -255,15 +260,33 @@ There are several points in the algorithm that require global synchronization.  
 
 \section{Rendering with OpenGL}
 
-????
+A major advantage of using CUDA for this simulation is that results can be rendered efficiently as they are calculated, since the data is already stored on the GPU.
+We displayed the results by swapping a data buffer back and forth between OpenGL and CUDA.  
+CUDA includes functions specifically for this type of interaction.  
+The buffer is initially created as an OpenGL VBO, but during CUDA kernel calls, it is unmapped for OpenGL while its data is manipulated by the CUDA code.
+At the completion of the kernel function, the buffer is mapped back to OpenGL where it is rendered.
+This buffer contains the position data for the particles in the simulation as 4-tuple float values, corresponding to the X, Y, Z, and W homogenous coordinates.
+This is represented using a float4 data type in CUDA.
+The positions are rendered simply as points in our code, though if more impressive graphics are desired, shaders could be added to improve the final appearence as is done in one of the CUDA SDK examples.
+
+Incorporating OpenGL into a CUDA program introduces a fair amount of additional overhead and has a significant impact on the overall structure and organization of the code.
+Once all the initialization has been taken care of for both CUDA and OpenGL, the program enters into the main animation loop for OpenGL.  
+While in this loop, it uses several callback functions to handle input and output.
+We made the CUDA kernel calls from within the ``display`` callback function.
+This way, the display is updated as soon as new results are calculated.  
+The downside of this organization is that as the kernel execution time increases for larger simulations, it causes the display function to take longer, which results in a sluggish program response to user input.
+
+
 \begin{figure}
 \begin{centering}
 \includegraphics[width = 5in]{Figures/openglFlowchart.png}
-\caption{Overview or control flow between OpenGL and CUDA.}
+\caption{Overview of control flow between OpenGL and CUDA.}
 \label{fig:kernelDivision}
 \end{centering}
 \end{figure}
 
+\section{Calculating Nearest Neighbors}
+TODO
 
 \section{Results}
 
