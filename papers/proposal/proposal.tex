@@ -177,7 +177,7 @@ Simulating deformable solids is important for creating visual effects.  To gener
 During elastoplastic simulation, deformation is computed by comparing the current deformed configuration of point samples with their reference configuration.  This deformation, along with material properties, is used compute elastic forces and plastic deformation of the reference configuration.  This is shown schematically in Figure \ref{fig:defGrad}.
 \begin{figure}
 \begin{centering}
-\includegraphics[width = \textwidth]{Figures/algSchematic.png}
+\includegraphics[width = 5in]{Figures/algSchematic.png}
 \caption{The difference between world and reference configurations defines the deformation gradient, which, along with material parameters, defines elastic forces and plastic deformation.}
 \label{fig:defGrad}
 \end{centering}
@@ -237,7 +237,7 @@ Because particles behave almost completely independently, we chose to map each p
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width = \textwidth]{Figures/threadDecomp.png}
+\includegraphics[width = 5in]{Figures/threadDecomp.png}
 \caption{Decomposition of the algorithm onto the GPU.}
 \label{fig:mapping}
 \end{centering}
@@ -247,25 +247,37 @@ There are several points in the algorithm that require global synchronization.  
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width = 5in]{Figures/AlgorithmFlowchart.png}
+\includegraphics[width = 3in]{Figures/AlgorithmFlowchart.png}
 \caption{Overview or required synchronization.}
 \label{fig:kernelDivision}
 \end{centering}
 \end{figure}
 
-\section{Intellectual Challenges}
+\section{Rendering with OpenGL}
 
-We expect the biggest challenges to come from solving the sparse matrices.
-These will be large matrices and care will need to be taken to break them up effectively for parallel computation.
-That much is relatively straightforward and similar to previous assignments, but it will be further complicated by the use of sparse matrix methods.
+????
+\begin{figure}
+\begin{centering}
+\includegraphics[width = 5in]{Figures/openglFlowchart.png}
+\caption{Overview or control flow between OpenGL and CUDA.}
+\label{fig:kernelDivision}
+\end{centering}
+\end{figure}
 
-Aside from that, much of the simulation parallelization should simply involve converting loops into threaded CUDA functions, 
-although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
 
-Additionally, there may be some challenges in implementing the OpenGL rendering of the simulation.  
-Such difficulties will be due more to unfamiliarity with the process and libraries rather than it being theoretically difficult, 
-since CUDA already has functions that provide the ability to coordinate with OpenGL for rendering purposes.
-
+%\section{Intellectual Challenges}
+%
+%We expect the biggest challenges to come from solving the sparse matrices.
+%These will be large matrices and care will need to be taken to break them up effectively for parallel computation.
+%That much is relatively straightforward and similar to previous assignments, but it will be further complicated by the use of sparse matrix methods.
+%
+%Aside from that, much of the simulation parallelization should simply involve converting loops into threaded CUDA functions, 
+%although atomic operations or other synchronization methods may be necessary when calculating interactions between neighboring particles.
+%
+%Additionally, there may be some challenges in implementing the OpenGL rendering of the simulation.  
+%Such difficulties will be due more to unfamiliarity with the process and libraries rather than it being theoretically difficult, 
+%since CUDA already has functions that provide the ability to coordinate with OpenGL for rendering purposes.
+%
 %\begin{CRcatlist}
   %\CRcat{I.3.7}{Computer Graphics}{Three-Dimensional Graphics and Realism}{Animation};
   %\CRcat{I.6.8}{Simulation and Modeling}{Types of Simulation}{Animation}.
