@@ -455,8 +455,9 @@ __host__ __device__ float vecMag(const float4& a){
   return sqrt(s);
 }
 
-__host__ __device__ float4 vecSub(const float4& a, float4& b){
-  return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, 0);
+__host__ __device__ float4 vecSub(const float4& a, const float4& b){
+  float4 ret = make_float4(a.x - b.x, a.y - b.y, a.z - b.z, 0);
+  return ret;
 }
 
 

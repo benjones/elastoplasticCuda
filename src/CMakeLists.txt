@@ -10,18 +10,25 @@ if (GLUT_FOUND)
    include_directories(${GLUT_INCLUDE_DIR})
 else (GLUT_FOUND)
    MESSAGE("GLUT environment missing")
+   SET(GLUT_LIBRARIES "-lglut")
 endif (GLUT_FOUND)
 
 FIND_PACKAGE(OpenGL)
 if (OPENGL_FOUND)
    MESSAGE("OpenGL Found: ${OPENGL_LIBRARIES}")
-   include_directories(${OPENGL_INCLUDE_DIR})
 else (OPENGL_FOUND)
-   MESSAGE("OpenGL environment missing")
+   MESSAGE("OpenGL environment missing")   
 endif (OPENGL_FOUND)
+#SET(OPENGL_INCLUDE_DIR "/home/benjones/NVIDIA_GPU_Computing_SDK/C/common/inc/" 
+#  "/home/benjones/NVIDIA_GPU_COMPUTING_SDK/shared/inc/")
+include_directories(${OPENGL_INCLUDE_DIR})
 
-SET(CUDA_NVCC_FLAGS "-arch=compute_13" "-code=sm_13") 
-SET(CUDA_SDK_ROOT_DIR "/uusoc/scratch/users/preethik/NVIDIA_GPU_Computing_SDK")
+SET(CUDA_NVCC_FLAGS "-arch=compute_20" "-code=sm_20" "-DUSE_ATOMIC_FLOAT" "-g" "-G" ) 
+SET(CUDA_SDK_ROOT_DIR "/home/benjones/NVIDIA_GPU_Computing_SDK")
+SET(CMAKE_CXX_FLAGS "-DUSE_ATOMIC_FLOAT" )
+
+#SET(CUDA_SDK_ROOT_DIR "/uusoc/scratch/users/preethik/NVIDIA_GPU_Computing_SDK")
+#SET(CUDA_NVCC_FLAGS "-arch=compute_13" "-code=sm_13" "-g" "-G" ) 
 
 #LINK_LIBRARIES(
 #	"-L${CUDA_SDK_ROOT_DIR}/C/lib" 
@@ -34,7 +41,8 @@ INCLUDE(FindCUDA)
 INCLUDE_DIRECTORIES(
 	"/usr/local/cuda/include"
 	"/usr/local/cuda/NVIDIA_GPU_Computing_SDK/C/common/inc" 
-
+	"/home/benjones/NVIDIA_GPU_Computing_SDK/shared/inc/"
+	"/home/benjones/NVIDIA_GPU_Computing_SDK/C/common/inc/"
 )
 
 CUDA_ADD_EXECUTABLE(testSVD testSVD.cu)
