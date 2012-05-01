@@ -1,0 +1,229 @@
+kwhans@echo4:~/class/hub/elastoplasticCuda/src$ ./epSim 
+Compute capability: 2-0
+---init particles...
+---set up openGL...
+---create VBO...
+---set up device memory...
+---run CUDA first time...
+Time to prep position matrix: 0.013472
+Time to copy positions to host: 0.024128
+Time to execute KNN: 155.846
+Time to copy indices to device: 0.045664
+---enter main loop...
+Time to prep position matrix: 0.012384
+Time to copy positions to host: 0.019552
+Time to execute KNN: 150.35
+Time to copy indices to device: 0.0456
+Time to prep position matrix: 0.01232
+Time to copy positions to host: 0.018944
+Time to execute KNN: 150.352
+Time to copy indices to device: 0.045728
+Time to prep position matrix: 0.012416
+Time to copy positions to host: 0.01888
+Time to execute KNN: 149.787
+Time to copy indices to device: 0.046176
+Time to prep position matrix: 0.012352
+Time to copy positions to host: 0.019776
+Time to execute KNN: 150.972
+Time to copy indices to device: 0.047264
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.01984
+Time to execute KNN: 149.807
+Time to copy indices to device: 0.044384
+Time to prep position matrix: 0.012416
+Time to copy positions to host: 0.019168
+Time to execute KNN: 124.477
+Time to copy indices to device: 0.04608
+Time to prep position matrix: 0.013248
+Time to copy positions to host: 0.019648
+Time to execute KNN: 89.2082
+Time to copy indices to device: 0.046592
+Time to prep position matrix: 0.012992
+Time to copy positions to host: 0.01952
+Time to execute KNN: 89.7652
+Time to copy indices to device: 0.045824
+Time to prep position matrix: 0.012608
+Time to copy positions to host: 0.019392
+Time to execute KNN: 89.7533
+Time to copy indices to device: 0.045632
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.019424
+Time to execute KNN: 91.97
+Time to copy indices to device: 0.047392
+Time to prep position matrix: 0.012608
+Time to copy positions to host: 0.020896
+Time to execute KNN: 91.827
+Time to copy indices to device: 0.047936
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.018976
+Time to execute KNN: 91.7883
+Time to copy indices to device: 0.045536
+Time to prep position matrix: 0.012672
+Time to copy positions to host: 0.021888
+Time to execute KNN: 91.8122
+Time to copy indices to device: 0.045792
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.019904
+Time to execute KNN: 91.959
+Time to copy indices to device: 0.047072
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.019264
+Time to execute KNN: 91.6214
+Time to copy indices to device: 0.04624
+Time to prep position matrix: 0.013536
+Time to copy positions to host: 0.019712
+Time to execute KNN: 91.9968
+Time to copy indices to device: 0.04608
+Time to prep position matrix: 0.012864
+Time to copy positions to host: 0.019392
+Time to execute KNN: 91.8112
+Time to copy indices to device: 0.046144
+Time to prep position matrix: 0.012672
+Time to copy positions to host: 0.02192
+Time to execute KNN: 92.018
+Time to copy indices to device: 0.085696
+Time to prep position matrix: 0.012768
+Time to copy positions to host: 0.020832
+Time to execute KNN: 90.1906
+Time to copy indices to device: 0.046144
+Time to prep position matrix: 0.012608
+Time to copy positions to host: 0.019808
+Time to execute KNN: 91.876
+Time to copy indices to device: 0.046016
+Time to prep position matrix: 0.012384
+Time to copy positions to host: 0.020704
+Time to execute KNN: 91.7556
+Time to copy indices to device: 0.04688
+Time to prep position matrix: 0.0128
+Time to copy positions to host: 0.019232
+Time to execute KNN: 92
+Time to copy indices to device: 0.045504
+Time to prep position matrix: 0.012544
+Time to copy positions to host: 0.020256
+Time to execute KNN: 91.8568
+Time to copy indices to device: 0.045408
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.019424
+Time to execute KNN: 91.8742
+Time to copy indices to device: 0.04592
+Time to prep position matrix: 0.012864
+Time to copy positions to host: 0.019424
+Time to execute KNN: 91.781
+Time to copy indices to device: 0.048864
+Time to prep position matrix: 0.012864
+Time to copy positions to host: 0.02016
+Time to execute KNN: 92.2238
+Time to copy indices to device: 0.046208
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.019584
+Time to execute KNN: 89.8198
+Time to copy indices to device: 0.046304
+Time to prep position matrix: 0.012672
+Time to copy positions to host: 0.019136
+Time to execute KNN: 89.7356
+Time to copy indices to device: 0.04592
+Time to prep position matrix: 0.014496
+Time to copy positions to host: 0.020608
+Time to execute KNN: 91.8933
+Time to copy indices to device: 0.045344
+Time to prep position matrix: 0.012672
+Time to copy positions to host: 0.019456
+Time to execute KNN: 91.9393
+Time to copy indices to device: 0.0472
+Time to prep position matrix: 0.012832
+Time to copy positions to host: 0.019168
+Time to execute KNN: 91.9151
+Time to copy indices to device: 0.047072
+Time to prep position matrix: 0.012608
+Time to copy positions to host: 0.01984
+Time to execute KNN: 91.9796
+Time to copy indices to device: 0.046688
+Time to prep position matrix: 0.012864
+Time to copy positions to host: 0.020992
+Time to execute KNN: 89.8949
+Time to copy indices to device: 0.052576
+Time to prep position matrix: 0.012768
+Time to copy positions to host: 0.020032
+Time to execute KNN: 89.8175
+Time to copy indices to device: 0.046208
+Time to prep position matrix: 0.012704
+Time to copy positions to host: 0.019392
+Time to execute KNN: 92.4468
+Time to copy indices to device: 0.045888
+Time to prep position matrix: 0.012704
+Time to copy positions to host: 0.020192
+Time to execute KNN: 91.4175
+Time to copy indices to device: 0.046272
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.019488
+Time to execute KNN: 89.7866
+Time to copy indices to device: 0.048032
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.020704
+Time to execute KNN: 89.9677
+Time to copy indices to device: 0.045632
+Time to prep position matrix: 0.012512
+Time to copy positions to host: 0.020352
+Time to execute KNN: 92.172
+Time to copy indices to device: 0.047584
+Time to prep position matrix: 0.012608
+Time to copy positions to host: 0.019328
+Time to execute KNN: 91.865
+Time to copy indices to device: 0.045664
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.02016
+Time to execute KNN: 89.8851
+Time to copy indices to device: 0.04944
+Time to prep position matrix: 0.012928
+Time to copy positions to host: 0.019648
+Time to execute KNN: 89.8921
+Time to copy indices to device: 0.047104
+Time to prep position matrix: 0.01248
+Time to copy positions to host: 0.020128
+Time to execute KNN: 91.9784
+Time to copy indices to device: 0.045696
+Time to prep position matrix: 0.012704
+Time to copy positions to host: 0.019296
+Time to execute KNN: 91.9873
+Time to copy indices to device: 0.045856
+Time to prep position matrix: 0.014912
+Time to copy positions to host: 0.019936
+Time to execute KNN: 92.1855
+Time to copy indices to device: 0.046144
+Time to prep position matrix: 0.012832
+Time to copy positions to host: 0.019776
+Time to execute KNN: 91.9434
+Time to copy indices to device: 0.04912
+Time to prep position matrix: 0.012576
+Time to copy positions to host: 0.020288
+Time to execute KNN: 91.9625
+Time to copy indices to device: 0.045728
+Time to prep position matrix: 0.01264
+Time to copy positions to host: 0.019424
+Time to execute KNN: 92.0451
+Time to copy indices to device: 0.046656
+Time to prep position matrix: 0.012448
+Time to copy positions to host: 0.0192
+Time to execute KNN: 151.277
+Time to copy indices to device: 0.0456
+Time to prep position matrix: 0.012448
+Time to copy positions to host: 0.020064
+Time to execute KNN: 150.927
+Time to copy indices to device: 0.04672
+Time to prep position matrix: 0.012512
+Time to copy positions to host: 0.019616
+Time to execute KNN: 151.44
+Time to copy indices to device: 0.045568
+Time to prep position matrix: 0.012416
+Time to copy positions to host: 0.019936
+Time to execute KNN: 152.208
+Time to copy indices to device: 0.045696
+*** Simulation Terminated ***
+Final Stats:
+  Number of particles: 512
+  Number of neighbors: 32
+  Average time per frame: 15.2568 ms
+  Best time per frame: 4.98038 ms
+  Worst time per frame: 174.25 ms
+  Total Frames: 427
+
