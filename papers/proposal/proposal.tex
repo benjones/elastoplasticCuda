@@ -159,12 +159,12 @@
 \begin{itemize}
 
 \item Ben Jones: Part of the team that implemented the sequential version of this algorithm, working with Adam Bargteil on graphics simulation research.
-Will be focusing on the core algorithm parallelization.
+Focusing on the core algorithm parallelization.
 
 \item Kyle Hansen: Computing Masters Student in the Graphics and Visualization Track.  
 2+ years of real world programming experience as an electronics engineer.  
 Hobby game programmer.  
-Will be primarily concerned with the real time openGL rendering of simulation results and nearest neighbor calculations.
+Primarily concerned with the real time openGL rendering of simulation results and nearest neighbor calculations.
 
 \end{itemize}
 
@@ -184,7 +184,7 @@ During elastoplastic simulation, deformation is computed by comparing the curren
 \end{figure}
 
 
-During the simulation, we maintain the objects world configuration, a set of nearest neighbors for each particle, and least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
+During the simulation, we maintain the object's world configuration, a set of nearest neighbors for each particle, and the least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
 \begin{itemize}
 
 \item compute deformation gradient, per particle
@@ -232,7 +232,15 @@ By performing the computation on the GPU, we can share data with OpenGL in a ver
 
 \section{Mapping to the GPU}
 
-Because particles behave almost completely independently, we chose to map each particle to a single CUDA thread.  Most steps in the algorithm require only reads from neighboring particle positional data and computation on 3 by 3 matrices.  Each particle tracks position and velocity in world space, reference position, forces, and indices of neighbor particles.  The position data is shared with OpenGL using a VBO.  A schematic representation of the mapping is shown in Figure \ref{fig:mapping}.
+Because particles behave almost completely independently, we chose to map each particle to a single CUDA thread.  
+We used a block size of 64 threads to allow 2 warps per block with plenty of registers for each thread to use.
+It is difficult to take advantage of shared memory for this simulation since it is broken up into many kernel calls and there is no guarantee that consecutive points are located nearby one another in space. 
+So for now we have left that option mostly unexplored.
+
+Most steps in the algorithm require only reads from neighboring particle positional data and computation on 3 by 3 matrices.  
+Each particle tracks position and velocity in world space, reference position, forces, and indices of neighbor particles.  
+The position data is shared with OpenGL using a VBO.  
+A schematic representation of the mapping is shown in Figure \ref{fig:mapping}.
 
 
 \begin{figure}
@@ -253,7 +261,7 @@ Additionally, atomic addition is required to avoid race conditions when calculat
 \begin{figure}
 \begin{centering}
 \includegraphics[width = 3in]{Figures/AlgorithmFlowchart.png}
-\caption{Overview or required synchronization.}
+\caption{Overview of required synchronization.}
 \label{fig:kernelDivision}
 \end{centering}
 \end{figure}
@@ -263,7 +271,7 @@ Additionally, atomic addition is required to avoid race conditions when calculat
 A major advantage of using CUDA for this simulation is that results can be rendered efficiently as they are calculated, since the data is already stored on the GPU.
 We displayed the results by swapping a data buffer back and forth between OpenGL and CUDA.  
 CUDA includes functions specifically for this type of interaction.  
-The buffer is initially created as an OpenGL VBO, but during CUDA kernel calls, it is unmapped for OpenGL while its data is manipulated by the CUDA code.
+The buffer is initially created as an OpenGL VBO, but during CUDA kernel calls, it is unmapped from OpenGL while its data is manipulated by the CUDA code.
 At the completion of the kernel function, the buffer is mapped back to OpenGL where it is rendered.
 This buffer contains the position data for the particles in the simulation as 4-tuple float values, corresponding to the X, Y, Z, and W homogenous coordinates.
 This is represented using a float4 data type in CUDA.
@@ -287,14 +295,13 @@ The downside of this organization is that as the kernel execution time increases
 
 \section{Calculating Nearest Neighbors}
 
-The calculation of nearest neighbors among particles is easily the most expensive operation in this simulation.  
+Currently, the calculation of nearest neighbors among particles is easily the most expensive operation in the simulation.  
 Luckily, neighborhoods tend to change little from one frame to the next, so recalculating neighbors every frame would be overkill.
 Instead, nearest neighbors are calculated for every 10th frame, and those results are reused until the next time they are updated.
 Even so, the KNN calculations tend to have the largest impact on overall execution time.
 As an illustration, for 512 particles and 32 neighbors, a typical frame with no KNN calculations took around 5ms to update while those frames updating the neighborhoods tended to take over 100ms.
 For a larger simulation, with 32768 particles and 32 neighbors, KNN calculations took over 2 full seconds while frames between neighborhood updates required less than 25ms.
 
-The KNN calculations are an obvious target for optimization.
 For this project, we deferred to the work of \cite{Garcia_2008_CVGPU} who provided a CUDA implementation for calculating K nearest neighbors.
 They basically use CUDA to parallelize the brute force approach for calculating KNN.  
 Their claim is that the brute force method is more suited to parallel execution than alternative methods.
@@ -321,7 +328,15 @@ We tested our simulator by dropping an evenly sampled cube onto flat ground.  Se
 \end{figure}
 
 
-We compared our results to a sequential implementation in order to determine the speedup of our parallel algorithm.  Sequential computations were performed on a single core of a 2.4GHz Intel Core I-5 processor.  Figure \ref{fig:scaling1} and Table \ref{tab:scaling1} show how our method scales with the number of particles, and the number of neighbors per particle.  Especially with a large number of particles, the CUDA implementation is significantly faster than the sequential implementation.
+We compared our results to a sequential implementation in order to illustrate the speedup of our parallel algorithm.  
+It should be noted that the comparison is not strictly a ''fair'' comparison since the sequential and parallel programs were run on different machines and several features are distinctly different or missing between the sequential and parallel versions of the simulation.
+We still felt that the comparison was informative since it provides a little bit of context for the performance of the CUDA implementation.
+Sequential computations were performed on a single core of a 2.4GHz Intel Core I-5 processor. 
+The CUDA implementation was executed on the ``echo4'' machine in the compiler research lab (MEB 3355).
+Figure \ref{fig:scaling1} and Table \ref{tab:scaling1} show how our method scales with the number of particles, and the number of neighbors per particle.  
+The performance for small numbers of particles is comparable between the sequential and parallel implementations, with only a slight speedup for the parallel version.
+With a large number of particles, the CUDA implementation is significantly faster than the sequential implementation.  
+With 32,768 particles and 32 nearest neighbors, the CUDA implementation was 20 times faster than the sequential version.
 
 
 \begin{figure}
@@ -356,7 +371,7 @@ We also analyzed how the KNN queries contributed to our runtime.  Figure \ref{fi
 \begin{figure}
 \begin{centering}
 \includegraphics[width = 5in]{Figures/charts_002.png}
-\caption{KNN query times are the bottleneck in our implementation (average vs slowest frames).}
+\caption{KNN query times are the bottleneck in our implementation (average vs slowest frames). The slowest frames will be ones where the KNN calculation is performed.}
 \label{fig:scaling2}
 \end{centering}
 \end{figure}
