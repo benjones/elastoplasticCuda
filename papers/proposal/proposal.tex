@@ -174,7 +174,7 @@ Simulating deformable solids is important for creating visual effects.  To gener
 
 \section{Algorithm Description}
 
-During elastoplastic simulation, deformation is computed by comparing the current deformed configuration of point samples with their reference configuration.  This deformation, along with material properties, is used compute elastic forces and plastic deformation of the reference configuration.  This is shown schematically in Figure \ref{fig:defGrad}
+During elastoplastic simulation, deformation is computed by comparing the current deformed configuration of point samples with their reference configuration.  This deformation, along with material properties, is used compute elastic forces and plastic deformation of the reference configuration.  This is shown schematically in Figure \ref{fig:defGrad}.
 \begin{figure}
 \begin{centering}
 \includegraphics[width = \textwidth]{Figures/algSchematic.png}
@@ -182,6 +182,8 @@ During elastoplastic simulation, deformation is computed by comparing the curren
 \label{fig:defGrad}
 \end{centering}
 \end{figure}
+
+
 During the simulation, we maintain the objects world configuration, a set of nearest neighbors for each particle, and least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
 \newpage
 \begin{itemize}
