@@ -144,7 +144,7 @@
 
 \teaser{\begin{centering}
 \includegraphics[width=6.1in]{Figures/teaser.png}
-\caption{Sample frames from a sequential, point-based elastoplastic simulator, which we hope to accelerate with a GPU implementation.}
+\caption{Sample frames from a sequential, point-based elastoplastic simulator, which is being accelerated with a GPU implementation for this project.}
 \label{fig:teaser}
 \end{centering}
 }
@@ -164,7 +164,7 @@ Will be focusing on the core algorithm parallelization.
 \item Kyle Hansen: Computing Masters Student in the Graphics and Visualization Track.  
 2+ years of real world programming experience as an electronics engineer.  
 Hobby game programmer.  
-Will be primarily concerned with the real time openGL rendering of simulation results.
+Will be primarily concerned with the real time openGL rendering of simulation results and nearest neighbor calculations.
 
 \end{itemize}
 
@@ -183,30 +183,36 @@ During elastoplastic simulation, deformation is computed by comparing the curren
 \end{centering}
 \end{figure}
 During the simulation, we maintain the objects world configuration, a set of nearest neighbors for each particle, and least squares fit of the global reference configuration.  At each simulation time step, we perform the following steps:
-\newpage
 \begin{itemize}
 
 \item compute deformation gradient, per particle
 \begin{itemize}
 \item factor gradient into elastic and plastic components
 \item apply elastic and body (gravity) forces
-\item apply plastic deformation to vectors to all neighbors of a particle
+\item apply plastic deformation to vectors to all neighbors of a particle*
 \end{itemize}
 \item integrate elastic forces
 \begin{itemize}
 \item perform explicit integration step of elastic and body forces
-\item perform implicit damping force solve (conjugate gradient (CG) solve of a sparse matrix)
+\item perform implicit damping force solve* 
 \end{itemize}
-\item compute new world reference configuration (sparse least squares solve using CG)
-\item compute per particle local error in global reference configuration 
-\item update particle neighborhoods (construct KD tree and do bounded nearest neighbor lookups)
+\item compute new world reference configuration* 
+\item compute per particle local error in global reference configuration* 
+\item update particle neighborhoods 
 \item resolve obstacle collisions
-\item (optional) render current simulation frame (using openGL)
-\item write particle positions to file
+\item render current simulation frame (using openGL)**
+\item write particle positions to file*
 \end{itemize}
 
+* Not yet included in the CUDA implementation.
+
+** Unique to the CUDA implementation.
 
 For more details please refer to \cite{us}.
+It should be noted that the above steps outline the complete simulation algorithm, which has not all been implemented for this particular project.
+For this project, we have only considered the elastic and body forces while also accelerating the K nearest neighbor (KNN) calculations and incorporating OpenGL to render the results as they are calculated.
+The primary goal for this project is to illustrate the potential acceleration that could be acheived by incorporating CUDA parallelization into the simulation.
+
 
 \section{Suitability for GPU implementation}
 
