@@ -378,6 +378,14 @@ Slowest & 105&	142	&268	&387	&579&	2292\\
 
 \section{Conclusions}
 
+As expected, a CUDA implementation provided significant speedup over the sequential implementation of the simulation algorithm, especially for large problem sizes.  The computation required for each particle was enough to hide data latency, and keep the processing cores busy.  The KNN algorithm we used performed poorly compared to the KD-tree based approach used in the sequential implementation.  Investigating this further is a possible direction of future work.
+
+Due to time constraints, we were not able to implement implicit integration or plastic deformation, but we are confident that both could be implemented efficiently with CUDA.  Due to the structure of the spare matrix systems being solved, we could achieve large speedups without significant fine-grained synchronization
+
+Another direction of future work is taking more advantage of the memory hierarchy by copying data from nearby particles to shared memory.  This would require a block decomposition based on particle proximity, but could potentially lead to large speedups.  
+
+
+
 
 %\section{Intellectual Challenges}
 %
